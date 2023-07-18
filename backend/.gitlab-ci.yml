@@ -1,3 +1,4 @@
+ 
 variables:
   VERSION: 1.0.${CI_PIPELINE_ID}
   ARTIFACT_COMPRESSION_LEVEL: fastest
@@ -168,4 +169,3 @@ helm-release:
     - cd $CI_PROJECT_DIR/helm/backend
     - helm package . --app-version ${VERSION} --version ${VERSION}
     - curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" --upload-file ./backend-${VERSION}.tgz ${NEXUS_HELM_REPO_BACKEND_URL}/backend-${VERSION}.tgz
- 

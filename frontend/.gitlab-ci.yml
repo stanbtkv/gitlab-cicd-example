@@ -1,3 +1,4 @@
+ 
 variables:
   VERSION: 1.0.${CI_PIPELINE_ID}
   SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
@@ -119,4 +120,3 @@ helm-release:
     - cd $CI_PROJECT_DIR/helm/frontend
     - helm package . --app-version ${VERSION} --version ${VERSION}
     - curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" --upload-file ./frontend-${VERSION}.tgz ${NEXUS_HELM_REPO_FRONTEND_URL}/frontend-${VERSION}.tgz
- 
