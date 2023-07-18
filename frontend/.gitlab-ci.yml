@@ -1,4 +1,4 @@
- 
+  
 variables:
   VERSION: 1.0.${CI_PIPELINE_ID}
   SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
