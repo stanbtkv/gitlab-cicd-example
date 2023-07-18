@@ -1,0 +1,13 @@
+image: stanbtkv/momo-frontend:latest
+tag: latest
+imagePullPolicy: Always
+revisionHistoryLimit: 15
+fqdn: momo-store.ru
+apifqdn: api.momo-store.ru
+httpPort: 80
+ingressBackendName: backend
+ingressBackendPort: 8081
+strategy:
+  type: Recreate
+
+

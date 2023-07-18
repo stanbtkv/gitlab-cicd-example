@@ -1,0 +1,55 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: momo-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: "nginx"
+  tls:
+    - hosts:
+        - {{ .Values.apifqdn }}
+      secretName: letsencrypt-api
+    - hosts:
+        - {{ .Values.fqdn }}
+      secretName: letsencrypt-momo
+  rules:
+  - host: "{{ .Values.fqdn }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: {{ .Values.httpPort }}
+  - host: "{{ .Values.apifqdn }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.ingressBackendName }}
+            port:
+              number: {{ .Values.ingressBackendPort }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  namespace: cert-manager
+spec:
+  acme:
+#    server: https://acme-staging-v02.api.letsencrypt.org/directory
+# при переключении со staging нужно заменить в Metadata:name privateKeySecretRef:name "letsencrypt-staging" на "letsencrypt-prod"
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: 142608@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx

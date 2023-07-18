@@ -1,0 +1,122 @@
+variables:
+  VERSION: 1.0.${CI_PIPELINE_ID}
+  SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
+  ARTIFACT_COMPRESSION_LEVEL: fastest
+  CACHE_COMPRESSION_LEVEL: fastest
+  #CI_DEBUG_TRACE: "true"
+  #SECURE_LOG_LEVEL: "debug"
+
+stages:
+  - test
+  - sonarqube-test
+  - build
+  - release
+  - docker-build
+  - helm-release
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  #- project: 'templates/ci'
+  #  file: 'DockerInDockerTemplate.yml'
+
+sonarcube_frontend:
+  stage: sonarqube-test
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+  script:
+    - cd frontend
+    - sonar-scanner -Dsonar.projectKey="$SONAR_FRONTEND_PROJECT_KEY" -Dsonar.token="$SONAR_FRONTEND_TOKEN" -Dsonar.sources=. -Dsonar.qualitygate.wait=true
+  allow_failure: true
+  
+spotbugs-sast:
+  stage: test
+  variables:
+    COMPILE: "false"
+  allow_failure: true
+
+build:
+# После выполения "npm run build" файлы раскладываются по нужным для правильной работы каталогам
+  stage: build
+  image: node:16-slim
+  variables:
+    NODE_ENV: "production"
+    VUE_APP_API_URL: "https://backend.acmecorp.ru"
+  cache:
+  - key: $CI_COMMIT_REF_SLUG_frontend
+    paths:
+      - ${CI_PROJECT_DIR}/frontend/node_modules
+  script:
+    - echo "ARTIFACT_JOB_ID=${CI_JOB_ID}" > CI_JOB_ID.txt
+    - cd ${CI_PROJECT_DIR}/frontend
+    - npm install --production=false
+    - npm run build
+    - mkdir -p ${CI_PROJECT_DIR}/frontend/public_html/momo-store
+    - mv ${CI_PROJECT_DIR}/frontend/dist/* ${CI_PROJECT_DIR}/frontend/public_html
+    - mv ${CI_PROJECT_DIR}/frontend/public_html/css ${CI_PROJECT_DIR}/frontend/public_html/momo-store
+    - mv ${CI_PROJECT_DIR}/frontend/public_html/img ${CI_PROJECT_DIR}/frontend/public_html/momo-store
+    - mv ${CI_PROJECT_DIR}/frontend/public_html/js ${CI_PROJECT_DIR}/frontend/public_html/momo-store
+    - ls -alht
+    - ls -alht ${CI_PROJECT_DIR}/frontend/public_html
+    - ls -alht ${CI_PROJECT_DIR}/frontend/public_html/momo-store
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/frontend/public_html
+    reports:
+      dotenv: CI_JOB_ID.txt
+ 
+release:
+  stage: release
+  image: curlimages/curl:8.1.2
+  script:
+    - tar czvf momo-store-frontend-${VERSION}.tar.gz ${CI_PROJECT_DIR}/frontend/public_html
+    - echo "Get artifact from job ${ARTIFACT_JOB_ID}"
+    - > # скачивание артефакта в файл momo-store-frontend-${VERSION}.zip
+      curl --location --output momo-store-frontend-${VERSION}.zip -H "PRIVATE-TOKEN: ${MOMO_STORE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${ARTIFACT_JOB_ID}/artifacts"
+    - > # сохранение артефакта в GitLab Package Registry
+      curl -sSL -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -T momo-store-frontend-${VERSION}.zip "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/momo-store/${CI_COMMIT_SHA}/"
+ 
+
+docker-frontend-image-build:
+# Формируется docker image, ему проставляется тэг с номером версии вместе с тэгом "latest"
+# Docker image публикуется в Gitlab Container Registry и Docker Hub
+# https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-the-docker-executor-with-docker-socket-binding
+  stage: docker-build
+  image: docker:23.0.6
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
+  script:
+    - pwd
+    - ls -alht
+    - ls -alht ..
+    - ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
+    - cd ${CI_PROJECT_DIR}/frontend
+    - >
+      docker build
+      --build-arg VERSION=$VERSION
+      --tag $CI_REGISTRY_IMAGE/momo-frontend:$VERSION
+      --tag $CI_REGISTRY_IMAGE/momo-frontend:latest
+      --tag $DOCKERHUB_USER/momo-frontend:$VERSION
+      --tag $DOCKERHUB_USER/momo-frontend:latest
+      .
+    - docker push $CI_REGISTRY_IMAGE/momo-frontend:$VERSION
+    - docker push $CI_REGISTRY_IMAGE/momo-frontend:latest
+    - docker push $DOCKERHUB_USER/momo-frontend:$VERSION
+    - docker push $DOCKERHUB_USER/momo-frontend:latest
+ 
+
+helm-release:
+  stage: helm-release
+  image:
+    name: alpine/helm:3.12.2
+    entrypoint: [""]
+  script:
+    - cd $CI_PROJECT_DIR/helm/frontend
+    - helm package . --app-version ${VERSION} --version ${VERSION}
+    - curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" --upload-file ./frontend-${VERSION}.tgz ${NEXUS_HELM_REPO_FRONTEND_URL}/frontend-${VERSION}.tgz
+ 

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: frontend
+description: momo-store frontend chart
+icon: https://cncf-branding.netlify.app/img/projects/helm/horizontal/color/helm-horizontal-color.png
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

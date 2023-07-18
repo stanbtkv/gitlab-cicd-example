@@ -1,0 +1,7 @@
+image: stanbtkv/momo-backend:latest
+tag: latest
+imagePullPolicy: Always
+containerPort: 8081
+
+
+

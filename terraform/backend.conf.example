@@ -1,0 +1,8 @@
+endpoint   = "storage.yandexcloud.net"
+bucket     = "Имя бакета"
+region     = "ru-central1"
+key        = "Путь к файлу tfstate, например, kubernetes-terraform/terraform.tfstate"
+access_key = "Яндекс access_key"
+secret_key = "Яндекс secret_key"
+skip_region_validation      = true
+skip_credentials_validation = true

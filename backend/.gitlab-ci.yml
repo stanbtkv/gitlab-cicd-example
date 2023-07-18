@@ -1,0 +1,171 @@
+variables:
+  VERSION: 1.0.${CI_PIPELINE_ID}
+  ARTIFACT_COMPRESSION_LEVEL: fastest
+  CACHE_COMPRESSION_LEVEL: fastest
+  GO111MODULE: "auto"
+  SAST_EXCLUDED_ANALYZERS: eslint, nodejs-scan
+
+  #CI_DEBUG_TRACE: "true"
+  #SECURE_LOG_LEVEL: "debug"
+  #SAST_IMAGE_SUFFIX: '-fips'
+  #SAST_EXCLUDED_PATHS: spec, test, tests, tmp, logger
+  #SCAN_KUBERNETES_MANIFESTS: 'false'
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  #- project: 'templates/ci'
+  #  file: 'DockerInDockerTemplate.yml'
+
+stages:
+  - test
+  - build
+  - release
+  - docker-build
+  - helm-release
+
+go-vet:
+  stage: test
+  image: golang:1.17.10-buster
+  before_script:
+    - ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
+  allow_failure: false
+  cache:
+    - key: backend
+      paths:
+        - ${CI_PROJECT_DIR}/.cache/
+  script:
+    - echo GOPATH $GOPATH
+    - cd ./backend
+    - go list -m all
+    - go vet -v ./...
+
+go-test:
+  stage: test
+  image: golang:1.17.10-buster
+  before_script:
+    - echo GOPATH $GOPATH
+    - ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
+  script:
+    - cd ./backend
+    - go list -m all
+    - go test -v -cover ./...
+  coverage: '/coverage: \d+.\d+% of statements/'
+
+gosec-sast:
+  variables:
+    COMPILE: "false"
+    #SAST_GOSEC_LEVEL: 0
+    # https://gitlab.com/gitlab-org/security-products/analyzers/gosec/-/tags
+    SAST_ANALYZER_IMAGE_TAG: "3.4.3"
+  before_script:
+    - echo GOPATH $GOPATH
+    - echo $CI_PROJECT_DIR CI_PROJECT_DIR
+    - pwd
+    - ls -la $CI_PROJECT_DIR
+    - mkdir -p "${GOSEC_SRC_PATH}"
+    - git clone -- "${GITHUB_REPO}" "${GOSEC_SRC_PATH}"
+    - mkdir -p /go/src/app
+    - cp -r "${GOSEC_SRC_PATH}"/* /go/src/app
+  script:
+    - /analyzer run
+  artifacts:
+    name: sast
+    paths:
+      - gl-sast-report.json
+    reports:
+      sast: gl-sast-report.json
+    when: always
+  after_script:
+    - echo "Execute this command after the script section completes."
+   
+# https://docs.sonarqube.org/latest/analysis/gitlab-integration/
+sonarqube-check:
+  stage: test
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner -Dsonar.projectKey="$SONAR_BACKEND_PROJECT_KEY" -Dsonar.token="$SONAR_BACKEND_TOKEN" -Dsonar.qualitygate.wait=true 
+  allow_failure: true
+
+compile:
+  stage: build
+  image: golang:1.17.10-buster
+  variables:
+    CGO_ENABLED: "0"
+  script:
+    - echo "ARTIFACT_JOB_ID=${CI_JOB_ID}" > CI_JOB_ID.txt
+    - echo $CI_PROJECT_DIR CI_PROJECT_DIR
+    - pwd
+    - ls -la $CI_PROJECT_DIR
+    - cd $CI_PROJECT_DIR/backend
+    - mkdir -p bin
+    - go build -o $CI_PROJECT_DIR/backend/bin ./...
+    - ls -alht
+    - ls -alht $CI_PROJECT_DIR/backend/bin
+    - ls -alht $CI_PROJECT_DIR/backend/bin/api
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/backend/bin/api
+    reports:
+      dotenv: CI_JOB_ID.txt
+
+release-backend:
+  stage: release
+  image: curlimages/curl:8.1.2
+  script:
+    - cd backend
+    - echo "Get artifact from job ${ARTIFACT_JOB_ID}" 
+    - > # скачивание артефакта в файл momo-store-backend-${VERSION}.zip
+      curl --location --output momo-store-backend-${VERSION}.zip -H "PRIVATE-TOKEN: ${MOMO_STORE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${ARTIFACT_JOB_ID}/artifacts"
+    - > # сохранение артефакта в GitLab Package Registry
+      curl -sSL -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -T momo-store-backend-${VERSION}.zip "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/momo-store/${CI_COMMIT_SHA}/"
+
+
+docker-backend-image-build:
+# Формируется docker image, ему проставляется тэг с номером версии вместе с тэгом "latest"
+# Docker image публикуется в Gitlab Container Registry и Docker Hub
+# https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-the-docker-executor-with-docker-socket-binding
+  stage: docker-build
+  image: docker:23.0.6
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
+  script:
+    - pwd
+    - ls -alht
+    - ls -alht ..
+    - ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
+    - cd $CI_PROJECT_DIR/backend
+    - >
+      docker build
+      --build-arg VERSION=$VERSION
+      --tag $CI_REGISTRY_IMAGE/momo-backend:$VERSION
+      --tag $CI_REGISTRY_IMAGE/momo-backend:latest
+      --tag $DOCKERHUB_USER/momo-backend:$VERSION
+      --tag $DOCKERHUB_USER/momo-backend:latest
+      .
+    - docker push $CI_REGISTRY_IMAGE/momo-backend:$VERSION
+    - docker push $CI_REGISTRY_IMAGE/momo-backend:latest
+    - docker push $DOCKERHUB_USER/momo-backend:$VERSION
+    - docker push $DOCKERHUB_USER/momo-backend:latest
+
+
+helm-release:
+  stage: helm-release
+  image:
+    name: alpine/helm:3.12.2
+    entrypoint: [""]
+  script:
+    - cd $CI_PROJECT_DIR/helm/backend
+    - helm package . --app-version ${VERSION} --version ${VERSION}
+    - curl -u "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" --upload-file ./backend-${VERSION}.tgz ${NEXUS_HELM_REPO_BACKEND_URL}/backend-${VERSION}.tgz
+ 
