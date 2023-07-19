@@ -1,28 +1,29 @@
-  
+   
 variables:
   VERSION: 1.0.${CI_PIPELINE_ID}
   ARTIFACT_COMPRESSION_LEVEL: fastest
   CACHE_COMPRESSION_LEVEL: fastest
   GO111MODULE: "auto"
   SAST_EXCLUDED_ANALYZERS: eslint, nodejs-scan
-
   #CI_DEBUG_TRACE: "true"
   #SECURE_LOG_LEVEL: "debug"
-  #SAST_IMAGE_SUFFIX: '-fips'
-  #SAST_EXCLUDED_PATHS: spec, test, tests, tmp, logger
-  #SCAN_KUBERNETES_MANIFESTS: 'false'
 
 include:
   - template: Security/SAST.gitlab-ci.yml
-  #- project: 'templates/ci'
-  #  file: 'DockerInDockerTemplate.yml'
 
 stages:
+  - debug
   - test
   - build
   - release
   - docker-build
   - helm-release
+
+print-all-env-vars-job:
+  stage: debug
+  script:
+    - echo "GitLab CI/CD | Print all environment variables"
+    - env
 
 go-vet:
   stage: test

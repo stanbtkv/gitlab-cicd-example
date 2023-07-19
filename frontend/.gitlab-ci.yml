@@ -1,4 +1,4 @@
-  
+   
 variables:
   VERSION: 1.0.${CI_PIPELINE_ID}
   SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
@@ -8,6 +8,7 @@ variables:
   #SECURE_LOG_LEVEL: "debug"
 
 stages:
+  - debug
   - test
   - sonarqube-test
   - build
@@ -17,8 +18,12 @@ stages:
 
 include:
   - template: Security/SAST.gitlab-ci.yml
-  #- project: 'templates/ci'
-  #  file: 'DockerInDockerTemplate.yml'
+
+print-all-env-vars-job:
+  stage: debug
+  script:
+    - echo "GitLab CI/CD | Print all environment variables"
+    - env
 
 sonarcube_frontend:
   stage: sonarqube-test
