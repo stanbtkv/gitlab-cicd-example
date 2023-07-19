@@ -18,7 +18,6 @@ stages:
 # - debug # На стадии "debug" выполняется задача "print-all-env-vars-job". При необходимости отладки переменных её можно раскомментировать.
   - build
   - test
-  - sonarqube-test
   - release
   - docker-build
   - helm-release
@@ -33,7 +32,7 @@ stages:
 # На стадии test подключается платформа SonarQube
 # https://docs.sonarqube.org/latest/analysis/gitlab-integration/
 sonarcube_frontend:
-  stage: sonarqube-test
+  stage: test
   image:
     name: sonarsource/sonar-scanner-cli:latest
     entrypoint: [""]
