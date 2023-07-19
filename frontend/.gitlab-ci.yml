@@ -17,44 +17,12 @@ include:
   - template: Security/SAST.gitlab-ci.yml
 
 stages:
-# - debug # На стадии "debug" выполняется задача "print-all-env-vars-job". При необходимости отладки переменных её можно раскомментировать.
-  - build
   - test
+  - build
   - release
   - docker-build
   - helm-release
 
-
-#print-all-env-vars-job:
-#  stage: debug
-#  script:
-#    - echo "GitLab CI/CD | Print all environment variables"
-#    - env
-
-# На стадии test подключается платформа SonarQube
-# https://docs.sonarqube.org/latest/analysis/gitlab-integration/
-sonarcube_frontend:
-  stage: test
-  image:
-    name: sonarsource/sonar-scanner-cli:latest
-    entrypoint: [""]
-  variables:
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
-    GIT_DEPTH: "0"
-  cache:
-    key: ${CI_JOB_NAME}
-    paths:
-      - .sonar/cache
-  script:
-    - cd frontend
-    - sonar-scanner -Dsonar.projectKey="$SONAR_FRONTEND_PROJECT_KEY" -Dsonar.token="$SONAR_FRONTEND_TOKEN" -Dsonar.sources=. -Dsonar.qualitygate.wait=true
-  allow_failure: true
-
-spotbugs-sast:
-  stage: test
-  variables:
-    COMPILE: "false"
-  allow_failure: true
 
 build-frontend:
 # После выполения "npm run build" файлы раскладываются по нужным для правильной работы каталогам
@@ -82,6 +50,31 @@ build-frontend:
       - ${CI_PROJECT_DIR}/frontend/public_html
     reports:
       dotenv: CI_JOB_ID.txt
+
+# На стадии test подключается платформа SonarQube
+# https://docs.sonarqube.org/latest/analysis/gitlab-integration/
+sonarcube_frontend:
+  stage: test
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: ${CI_JOB_NAME}
+    paths:
+      - .sonar/cache
+  script:
+    - cd frontend
+    - sonar-scanner -Dsonar.projectKey="$SONAR_FRONTEND_PROJECT_KEY" -Dsonar.token="$SONAR_FRONTEND_TOKEN" -Dsonar.sources=. -Dsonar.qualitygate.wait=true
+  allow_failure: true
+
+spotbugs-sast:
+  stage: test
+  variables:
+    COMPILE: "false"
+  allow_failure: true
 
 release:
   stage: release
