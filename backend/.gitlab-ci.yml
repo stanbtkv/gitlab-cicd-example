@@ -1,4 +1,4 @@
-       
+        
 variables:
 # Версионирование согласно правилам SemVer (https://semver.org/).
 # При выполнении пайплайна номер патч-версии равен переменной CI_PIPELINE_ID.
@@ -85,7 +85,7 @@ gosec-sast:
 
 # На стадии test подключается платформа SonarQube
 # https://docs.sonarqube.org/latest/analysis/gitlab-integration/
-sonarqube-check:
+sonarqube-backend:
   stage: test
   image:
     name: sonarsource/sonar-scanner-cli:latest
