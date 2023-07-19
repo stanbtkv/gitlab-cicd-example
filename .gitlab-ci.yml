@@ -1,11 +1,21 @@
    
 variables:
+# Версионирование согласно правилам SemVer (https://semver.org/)
+# При выполнении пайплайна номер патч-версии равен переменной CI_PIPELINE_ID
   VERSION: 1.0.${CI_PIPELINE_ID}
 
 stages:
   - module-pipelines
 
-backend:
+# Используется механизм Downstream pipelines (https://docs.gitlab.com/ee/ci/pipelines/downstream_pipelines.html).
+# Child pipeline "/backend/.gitlab-ci.yml" будет запущен только при изменениях в каталоге "backend/*".
+# Child pipeline "/frontend/.gitlab-ci.yml" будет запущен только при изменениях в каталоге "frontend/*".
+#
+# При определении успешности статуса выполнения пайплайнов "module-backend" и "module-frontend" происходит ожидание
+# окончания выполнения пайплайнов "/backend/.gitlab-ci.yml" и "/frontend/.gitlab-ci.yml".
+# https://docs.gitlab.com/ee/ci/yaml/index.html#triggerstrategy
+
+module-backend:
   stage: module-pipelines
   trigger:
     include:
@@ -15,7 +25,7 @@ backend:
     changes:
       - backend/**/*
 
-frontend:
+module-frontend:
   stage: module-pipelines
   trigger:
     include:
