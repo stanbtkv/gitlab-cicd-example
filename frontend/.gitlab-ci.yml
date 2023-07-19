@@ -3,11 +3,16 @@ variables:
 # Версионирование согласно правилам SemVer (https://semver.org/).
 # При выполнении пайплайна номер патч-версии равен переменной CI_PIPELINE_ID.
   VERSION: 1.0.${CI_PIPELINE_ID}
-  #SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
   ARTIFACT_COMPRESSION_LEVEL: fastest
   CACHE_COMPRESSION_LEVEL: fastest
-  #CI_DEBUG_TRACE: "true"
-  #SECURE_LOG_LEVEL: "debug"
+  SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
+
+# Подключение GitLab Static Application Security Testing (SAST)
+# https://docs.gitlab.com/ee/user/application_security/sast/
+# На стадии test будут выполнены GitLab Semgrep analyzer и GitLab NodeJsScan analyzer
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
 
 stages:
 # - debug # На стадии "debug" выполняется задача "print-all-env-vars-job". При необходимости отладки переменных её можно раскомментировать.
@@ -17,12 +22,6 @@ stages:
   - release
   - docker-build
   - helm-release
-
-# Подключение GitLab Static Application Security Testing (SAST)
-# https://docs.gitlab.com/ee/user/application_security/sast/
-# На стадии test будет выполнен GitLab Semgrep analyzer и GitLab NodeJsScan analyzer
-include:
-  - template: Security/SAST.gitlab-ci.yml
 
 
 #print-all-env-vars-job:
