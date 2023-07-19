@@ -6,6 +6,8 @@ variables:
   ARTIFACT_COMPRESSION_LEVEL: fastest
   CACHE_COMPRESSION_LEVEL: fastest
   SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
+  CI_DEBUG_TRACE: "true"
+  SECURE_LOG_LEVEL: "debug"
 
 # Подключение GitLab Static Application Security Testing (SAST)
 # https://docs.gitlab.com/ee/user/application_security/sast/
@@ -62,7 +64,7 @@ build:
     NODE_ENV: "production"
     VUE_APP_API_URL: "https://backend.acmecorp.ru"
   cache:
-  - key: $CI_COMMIT_REF_SLUG_frontend
+  - key: $CI_COMMIT_REF_SLUG
     paths:
       - ${CI_PROJECT_DIR}/frontend/node_modules
   script:
