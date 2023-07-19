@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/component: {{ .Chart.Name }}
     app.kubernetes.io/part-of: momo-store
 spec:
-  replicas: 3
+  replicas: 1
   revisionHistoryLimit: 3
   strategy:
     type: RollingUpdate
