@@ -12,9 +12,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/stanbtkv/pelemennaya/cmd/api/app"
-	"github.com/stanbtkv/pelemennaya/cmd/api/dependencies"
-	"github.com/stanbtkv/pelemennaya/internal/logger"
+	"gitlab.acmecorp.ru/stanbtkv/momo-store/cmd/api/app"
+	"gitlab.acmecorp.ru/stanbtkv/momo-store/cmd/api/dependencies"
+	"gitlab.acmecorp.ru/stanbtkv/momo-store/internal/logger"
 )
 
 func main() {

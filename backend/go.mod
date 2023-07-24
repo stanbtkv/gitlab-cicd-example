@@ -1,4 +1,4 @@
-module github.com/stanbtkv/pelemennaya
+module gitlab.acmecorp.ru/stanbtkv/momo-store
 
 go 1.17
 

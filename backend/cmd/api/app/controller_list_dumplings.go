@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/stanbtkv/pelemennaya/internal/logger"
-	"github.com/stanbtkv/pelemennaya/internal/store/dumplings"
+	"gitlab.acmecorp.ru/stanbtkv/momo-store/internal/logger"
+	"gitlab.acmecorp.ru/stanbtkv/momo-store/internal/store/dumplings"
 )
 
 func (i *Instance) ListDumplingsController(w http.ResponseWriter, r *http.Request) {

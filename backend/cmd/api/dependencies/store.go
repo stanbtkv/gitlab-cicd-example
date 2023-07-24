@@ -1,8 +1,8 @@
 package dependencies
 
 import (
-	"github.com/stanbtkv/pelemennaya/internal/store/dumplings"
-	"github.com/stanbtkv/pelemennaya/internal/store/dumplings/fake"
+	"gitlab.acmecorp.ru/stanbtkv/momo-store/internal/store/dumplings"
+	"gitlab.acmecorp.ru/stanbtkv/momo-store/internal/store/dumplings/fake"
 )
 
 // NewFakeDumplingsStore returns new fake store for app
