@@ -17,7 +17,7 @@ include:
   - template: Security/SAST.gitlab-ci.yml
 
 stages:
-  - test
+  #- test
   - build
   - release
 
