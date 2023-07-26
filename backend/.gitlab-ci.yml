@@ -20,9 +20,6 @@ stages:
   - test
   - build
   - release
-  - docker-build
-  - helm-release
-
 
 go-vet:
   stage: test
@@ -134,7 +131,8 @@ release-backend:
 docker-backend-image-build:
 # Формируется docker image, ему проставляется тэг с номером версии вместе с тэгом "latest"
 # Docker image публикуется в Gitlab Container Registry и Docker Hub
-  stage: docker-build
+  stage: release
+  needs: ["release-backend"]
   image: docker:23.0.6
   before_script:
     - until docker info; do sleep 1; done
@@ -161,7 +159,8 @@ docker-backend-image-build:
 
 
 helm-release:
-  stage: helm-release
+  stage: release
+  needs: ["docker-backend-image-build"]
   image:
     name: alpine/helm:3.12.2
     entrypoint: [""]
