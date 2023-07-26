@@ -131,8 +131,7 @@ docker-backend-image-build:
 # Формируется docker image, ему проставляется тэг с номером версии вместе с тэгом "latest"
 # Docker image публикуется в Gitlab Container Registry и Docker Hub
   stage: release
-  needs:
-    - job: release-backend
+  needs: ["release-backend"]
   image: docker:23.0.6
   before_script:
     - until docker info; do sleep 1; done
@@ -159,8 +158,7 @@ docker-backend-image-build:
 
 helm-release:
   stage: release
-    needs:
-    - job: docker-backend-image-build
+  needs: ["docker-backend-image-build"]
   image:
     name: alpine/helm:3.12.2
     entrypoint: [""]
