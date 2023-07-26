@@ -91,7 +91,7 @@ sonarqube-backend:
     paths:
       - .sonar/cache
   script:
-    - sonar-scanner -X -Dsonar.projectKey="$SONAR_BACKEND_PROJECT_KEY" -Dsonar.token="$SONAR_BACKEND_TOKEN" -Dsonar.qualitygate.wait=true 
+    - sonar-scanner -X -Dsonar.sources="${CI_PROJECT_DIR}/backend" -Dsonar.projectKey="$SONAR_BACKEND_PROJECT_KEY" -Dsonar.token="$SONAR_BACKEND_TOKEN" -Dsonar.qualitygate.wait=true 
   allow_failure: true
 
 compile:
