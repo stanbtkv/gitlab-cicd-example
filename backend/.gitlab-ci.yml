@@ -117,6 +117,8 @@ compile:
       dotenv: CI_JOB_ID.txt
 
 release-backend:
+  needs:
+    - compile
   stage: release
   image: curlimages/curl:8.1.2
   script:
