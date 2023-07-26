@@ -6,8 +6,8 @@ variables:
   ARTIFACT_COMPRESSION_LEVEL: fastest
   CACHE_COMPRESSION_LEVEL: fastest
   SAST_EXCLUDED_ANALYZERS: spotbugs, gosec-sast
-  CI_DEBUG_TRACE: "true"
-  SECURE_LOG_LEVEL: "debug"
+  #CI_DEBUG_TRACE: "true"
+  #SECURE_LOG_LEVEL: "debug"
 
 # Подключение GitLab Static Application Security Testing (SAST)
 # https://docs.gitlab.com/ee/user/application_security/sast/
@@ -36,8 +36,13 @@ sonarcube_frontend:
     paths:
       - .sonar/cache
   script:
-    - cd frontend
-    - sonar-scanner -Dsonar.projectKey="$SONAR_FRONTEND_PROJECT_KEY" -Dsonar.token="$SONAR_FRONTEND_TOKEN" -Dsonar.sources=. -Dsonar.qualitygate.wait=true
+    - >
+      sonar-scanner \
+        -X \
+        -Dsonar.sources="${CI_PROJECT_DIR}/frontend" \
+        -Dsonar.projectKey="$SONAR_FRONTEND_PROJECT_KEY" \
+        -Dsonar.token="$SONAR_FRONTEND_TOKEN" \
+        -Dsonar.qualitygate.wait=true
   allow_failure: true
 
 spotbugs-sast:
@@ -100,8 +105,8 @@ docker-frontend-image-build:
     - docker push $DOCKERHUB_USER/momo-frontend:$VERSION
     - docker push $DOCKERHUB_USER/momo-frontend:latest
 
-release:
-  stage: release
+package:
+  stage: build
   image: curlimages/curl:8.1.2
   script:
     - tar czvf momo-store-frontend-${VERSION}.tar.gz ${CI_PROJECT_DIR}/frontend/public_html
