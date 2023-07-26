@@ -91,7 +91,7 @@ sonarqube-backend:
     paths:
       - .sonar/cache
   script:
-    - sonar-scanner -Dsonar.projectKey="$SONAR_BACKEND_PROJECT_KEY" -Dsonar.token="$SONAR_BACKEND_TOKEN" -Dsonar.qualitygate.wait=true 
+    - sonar-scanner -X -Dsonar.projectKey="$SONAR_BACKEND_PROJECT_KEY" -Dsonar.token="$SONAR_BACKEND_TOKEN" -Dsonar.qualitygate.wait=true 
   allow_failure: true
 
 compile:
@@ -127,12 +127,12 @@ release-backend:
     - > # сохранение артефакта в GitLab Package Registry
       curl -sSL -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -T momo-store-backend-${VERSION}.zip "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/momo-store/${CI_COMMIT_SHA}/"
 
-
 docker-backend-image-build:
 # Формируется docker image, ему проставляется тэг с номером версии вместе с тэгом "latest"
 # Docker image публикуется в Gitlab Container Registry и Docker Hub
   stage: release
-  needs: ["release-backend"]
+  needs:
+    - job: release-backend
   image: docker:23.0.6
   before_script:
     - until docker info; do sleep 1; done
@@ -157,10 +157,10 @@ docker-backend-image-build:
     - docker push $DOCKERHUB_USER/momo-backend:$VERSION
     - docker push $DOCKERHUB_USER/momo-backend:latest
 
-
 helm-release:
   stage: release
-  needs: ["docker-backend-image-build"]
+    needs:
+    - job: docker-backend-image-build
   image:
     name: alpine/helm:3.12.2
     entrypoint: [""]
