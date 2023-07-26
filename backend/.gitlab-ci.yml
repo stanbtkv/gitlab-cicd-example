@@ -23,7 +23,6 @@ stages:
 
 go-vet:
   stage: test
-  when: manual
   image: golang:1.17.10-buster
   before_script:
     - ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
@@ -40,7 +39,6 @@ go-vet:
 
 go-test:
   stage: test
-  when: manual
   image: golang:1.17.10-buster
   before_script:
     - echo GOPATH $GOPATH
@@ -82,7 +80,6 @@ gosec-sast:
 # https://docs.sonarqube.org/latest/analysis/gitlab-integration/
 sonarqube-backend:
   stage: test
-  when: manual
   image:
     name: sonarsource/sonar-scanner-cli:latest
     entrypoint: [""]
