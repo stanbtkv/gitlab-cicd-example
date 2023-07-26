@@ -23,6 +23,7 @@ stages:
 
 go-vet:
   stage: test
+  when: manual
   image: golang:1.17.10-buster
   before_script:
     - ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
@@ -122,7 +123,7 @@ compile:
 release-backend:
   needs:
     - compile
-  stage: release
+  stage: build
   image: curlimages/curl:8.1.2
   script:
     - cd backend
@@ -137,7 +138,7 @@ docker-backend-image-build:
 # Docker image публикуется в Gitlab Container Registry и Docker Hub
   needs:
     - release-backend
-  stage: release
+  stage: build
   image: docker:23.0.6
   artifacts:
     paths:
@@ -164,6 +165,7 @@ docker-backend-image-build:
     - docker push $CI_REGISTRY_IMAGE/momo-backend:latest
     - docker push $DOCKERHUB_USER/momo-backend:$VERSION
     - docker push $DOCKERHUB_USER/momo-backend:latest
+
 
 helm-release:
   needs:
