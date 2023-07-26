@@ -17,7 +17,7 @@ include:
   - template: Security/SAST.gitlab-ci.yml
 
 stages:
-  #- test
+  - test
   - build
   - release
 
@@ -136,6 +136,9 @@ docker-backend-image-build:
     - release-backend
   stage: release
   image: docker:23.0.6
+  artifacts:
+    paths:
+      - momo-store-${VERSION}/api
   before_script:
     - until docker info; do sleep 1; done
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
