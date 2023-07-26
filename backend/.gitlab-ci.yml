@@ -122,19 +122,6 @@ compile:
     reports:
       dotenv: CI_JOB_ID.txt
 
-package:
-  needs:
-    - compile
-  stage: build
-  image: curlimages/curl:8.1.2
-  script:
-    - cd backend
-    - echo "Get artifact from job ${ARTIFACT_JOB_ID}" 
-    - > # скачивание артефакта в файл momo-store-backend-${VERSION}.zip
-      curl --location --output momo-store-backend-${VERSION}.zip -H "PRIVATE-TOKEN: ${MOMO_STORE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${ARTIFACT_JOB_ID}/artifacts"
-    - > # сохранение артефакта в GitLab Package Registry
-      curl -sSL -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -T momo-store-backend-${VERSION}.zip "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/momo-store/${CI_COMMIT_SHA}/"
-
 docker-backend-image-build:
 # Формируется docker image, ему проставляется тэг с номером версии вместе с тэгом "latest"
 # Docker image публикуется в Gitlab Container Registry и Docker Hub
@@ -166,6 +153,20 @@ docker-backend-image-build:
     - docker push $CI_REGISTRY_IMAGE/momo-backend:latest
     - docker push $DOCKERHUB_USER/momo-backend:$VERSION
     - docker push $DOCKERHUB_USER/momo-backend:latest
+
+
+package:
+  needs:
+    - compile
+  stage: build
+  image: curlimages/curl:8.1.2
+  script:
+    - cd backend
+    - echo "Get artifact from job ${ARTIFACT_JOB_ID}" 
+    - > # скачивание артефакта в файл momo-store-backend-${VERSION}.zip
+      curl --location --output momo-store-backend-${VERSION}.zip -H "PRIVATE-TOKEN: ${MOMO_STORE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${ARTIFACT_JOB_ID}/artifacts"
+    - > # сохранение артефакта в GitLab Package Registry
+      curl -sSL -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -T momo-store-backend-${VERSION}.zip "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/momo-store/${CI_COMMIT_SHA}/"
 
 
 helm-release:
