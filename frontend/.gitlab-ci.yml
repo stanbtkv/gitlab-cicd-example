@@ -106,9 +106,17 @@ docker-frontend-image-build:
     - docker push $DOCKERHUB_USER/momo-frontend:latest
 
 package:
+  needs:
+    - build-frontend
   stage: build
   image: curlimages/curl:8.1.2
   script:
+    - pwd
+    - ls -alht
+    - ls -alht ..
+    - ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /' -e 's/-/|/'
+    - ls -alht ${CI_PROJECT_DIR}/frontend
+    - ls -alht ${CI_PROJECT_DIR}/frontend/public_html
     - tar czvf momo-store-frontend-${VERSION}.tar.gz ${CI_PROJECT_DIR}/frontend/public_html
     - echo "Get artifact from job ${ARTIFACT_JOB_ID}"
     - > # скачивание артефакта в файл momo-store-frontend-${VERSION}.zip
