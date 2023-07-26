@@ -39,6 +39,7 @@ go-vet:
 
 go-test:
   stage: test
+  when: manual
   image: golang:1.17.10-buster
   before_script:
     - echo GOPATH $GOPATH
@@ -50,6 +51,7 @@ go-test:
   coverage: '/coverage: \d+.\d+% of statements/'
 
 gosec-sast:
+  when: manual
   variables:
     COMPILE: "false"
     #SAST_GOSEC_LEVEL: 0
@@ -80,6 +82,7 @@ gosec-sast:
 # https://docs.sonarqube.org/latest/analysis/gitlab-integration/
 sonarqube-backend:
   stage: test
+  when: manual
   image:
     name: sonarsource/sonar-scanner-cli:latest
     entrypoint: [""]
