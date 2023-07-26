@@ -20,8 +20,31 @@ stages:
   - test
   - build
   - release
-  - docker-build
-  - helm-release
+
+# На стадии test подключается платформа SonarQube
+# https://docs.sonarqube.org/latest/analysis/gitlab-integration/
+sonarcube_frontend:
+  stage: test
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: ${CI_JOB_NAME}
+    paths:
+      - .sonar/cache
+  script:
+    - cd frontend
+    - sonar-scanner -Dsonar.projectKey="$SONAR_FRONTEND_PROJECT_KEY" -Dsonar.token="$SONAR_FRONTEND_TOKEN" -Dsonar.sources=. -Dsonar.qualitygate.wait=true
+  allow_failure: true
+
+spotbugs-sast:
+  stage: test
+  variables:
+    COMPILE: "false"
+  allow_failure: true
 
 
 build-frontend:
@@ -51,48 +74,12 @@ build-frontend:
     reports:
       dotenv: CI_JOB_ID.txt
 
-# На стадии test подключается платформа SonarQube
-# https://docs.sonarqube.org/latest/analysis/gitlab-integration/
-sonarcube_frontend:
-  stage: test
-  image:
-    name: sonarsource/sonar-scanner-cli:latest
-    entrypoint: [""]
-  variables:
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
-    GIT_DEPTH: "0"
-  cache:
-    key: ${CI_JOB_NAME}
-    paths:
-      - .sonar/cache
-  script:
-    - cd frontend
-    - sonar-scanner -Dsonar.projectKey="$SONAR_FRONTEND_PROJECT_KEY" -Dsonar.token="$SONAR_FRONTEND_TOKEN" -Dsonar.sources=. -Dsonar.qualitygate.wait=true
-  allow_failure: true
-
-spotbugs-sast:
-  stage: test
-  variables:
-    COMPILE: "false"
-  allow_failure: true
-
-release:
-  stage: release
-  image: curlimages/curl:8.1.2
-  script:
-    - tar czvf momo-store-frontend-${VERSION}.tar.gz ${CI_PROJECT_DIR}/frontend/public_html
-    - echo "Get artifact from job ${ARTIFACT_JOB_ID}"
-    - > # скачивание артефакта в файл momo-store-frontend-${VERSION}.zip
-      curl --location --output momo-store-frontend-${VERSION}.zip -H "PRIVATE-TOKEN: ${MOMO_STORE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${ARTIFACT_JOB_ID}/artifacts"
-    - > # сохранение артефакта в GitLab Package Registry
-      curl -sSL -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -T momo-store-frontend-${VERSION}.zip "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/momo-store/${CI_COMMIT_SHA}/"
-
-
 docker-frontend-image-build:
 # Формируется docker image, ему проставляется тэг с номером версии вместе с тэгом "latest"
 # Docker image публикуется в Gitlab Container Registry и Docker Hub
-
-  stage: docker-build
+  needs:
+    - build-frontend
+  stage: build
   image: docker:23.0.6
   before_script:
     - until docker info; do sleep 1; done
@@ -113,9 +100,20 @@ docker-frontend-image-build:
     - docker push $DOCKERHUB_USER/momo-frontend:$VERSION
     - docker push $DOCKERHUB_USER/momo-frontend:latest
 
+release:
+  stage: release
+  image: curlimages/curl:8.1.2
+  script:
+    - tar czvf momo-store-frontend-${VERSION}.tar.gz ${CI_PROJECT_DIR}/frontend/public_html
+    - echo "Get artifact from job ${ARTIFACT_JOB_ID}"
+    - > # скачивание артефакта в файл momo-store-frontend-${VERSION}.zip
+      curl --location --output momo-store-frontend-${VERSION}.zip -H "PRIVATE-TOKEN: ${MOMO_STORE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${ARTIFACT_JOB_ID}/artifacts"
+    - > # сохранение артефакта в GitLab Package Registry
+      curl -sSL -H "JOB-TOKEN: ${CI_JOB_TOKEN}" -T momo-store-frontend-${VERSION}.zip "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/momo-store/${CI_COMMIT_SHA}/"
+
 
 helm-release:
-  stage: helm-release
+  stage: release
   image:
     name: alpine/helm:3.12.2
     entrypoint: [""]
