@@ -3,6 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend
+  namespace: app
   labels:
     app: backend
 spec:
@@ -18,10 +19,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  namespace: app
   labels:
     app: backend
 spec:
-  replicas: 3
+  replicas: 1
   revisionHistoryLimit: 15
   strategy:
     type: RollingUpdate
