@@ -1,45 +1,273 @@
-# Momo Store aka Пельменная №2
 
-<img width="900" alt="image" src="https://user-images.githubusercontent.com/9394918/167876466-2c530828-d658-4efe-9064-825626cc6db5.png">
+<p align="center">
+  <img src="https://storage.yandexcloud.net/git-example/logo.png">
+</p>
 
-## Проект для демонстрации полного цикла сборки и поставки приложения с помощью практик и инструментов CI/CD.
 
-**Для реализации проекта использованы**:
+- [Описание репозитория](#repo_desc)
+- [Содержание CI/CD-пайплайна](#cicd_pipeline)
+- [Задачи, выполняемые на каждом из этапов CI/CD](#cicd_pipeline_tasks)
+  - [Test](#cicd_pipeline_test)
+  - [Build](#cicd_pipeline_build)
+  - [Release](#cicd_pipeline_release)
+  - [Deploy](#cicd_pipeline_deploy)
+- [Мониторинг](#monitoring)
+  - [Мониторинг приложения](#app_monitoring)
+  - [Мониторинг кластера Kubernetes](#k8s_monitoring)
+- [Подготовка инфраструктуры](#infrastructure)
+  - [Yandex.Cloud](#cloud_infrastructure)
+  - [Для локального тестирования](#local_infrastructure)  
 
- - GitLab для управления репозиториями, процессами CI/CD и SAST-анализа кода
- - Nexus и Docker Hub для хранения артефактов
- - SonarQube для измерения качества программного кода
- - Terraform для декларативного управления инфраструктурой с использованием подхода Infrastructure as code
- - Kubernetes - платформа оркестрации контейнеризированных приложений
- - Helm - пакетный менеджер для Kubernetes
- - ArgoCD - инструмент continuous delivery для Kubernetes, позволяющий реализовать подход GitOps
- - Grafana, Loki, Promtail, Prometheus для сбора данных и визуализации мониторинга
+## Описание репозитория
+<a name="repo_desc"></a>
+В репозитории находится CI/CD-пайплайн для веб-приложения, реализованного на [Go](https://go.dev/) и [Node.js](https://nodejs.org/en).
+Используются следующие инструменты:
 
-**Чек-лист по функционалу, реализованному в проекте**:
+- [GitLab](https://about.gitlab.com/)
+- [MinIO](https://min.io/)
+- [Sonatype Nexus](https://www.sonatype.com/products/sonatype-nexus-repository)
+- [SonarQube](https://www.sonarsource.com/products/sonarqube/)
+- [Kubernetes](https://kubernetes.io/)
+- [MetalLB](https://metallb.universe.tf/)
+- [cert-manager](https://cert-manager.io/)
+- [Helm](https://helm.sh/)
+- [Argo CD](https://argo-cd.readthedocs.io/)
+- [Grafana](https://grafana.com/)
+- [Prometheus](https://prometheus.io/)
 
-- [x] Код хранится в GitLab с использованием любого git-flow
-- [x] В проекте присутствует .gitlab-ci.yml, в котором описаны шаги сборки
-- [x] Артефакты сборки (бинарные файлы, docker-образы или др.) публикуются в систему хранения (Nexus или аналоги)
-- [x] Артефакты сборки версионируются
-- [x] Написаны Dockerfile'ы для сборки Docker-образов бэкенда и фронтенда
-- [x] Бэкенд: бинарный файл Go в Docker-образе
-- [x] Фронтенд: HTML-страница раздаётся с Nginx
-- [x] В GitLab CI описан шаг сборки и публикации артефактов
-- [x] В GitLab CI описан шаг тестирования
-- [x] В GitLab CI описан шаг деплоя
-- [x] Развёрнут Kubernetes-кластер в облаке
-- [x] Kubernetes-кластер описан в виде кода, и код хранится в репозитории GitLab
-- [x] Конфигурация всех необходимых ресурсов описана согласно IaC
-- [x] Состояние Terraform'а хранится в S3
-- [x] Картинки, которые использует сайт, или другие небинарные файлы, необходимые для работы, хранятся в S3
-- [x] Секреты не хранятся в открытом виде
-- [x] Написаны Kubernetes-манифесты для публикации приложения
-- [x] Написан Helm-чарт для публикации приложения
-- [x] Helm-чарты публикуются и версионируются в Nexus
-- [x] Приложение подключено к системам логирования и мониторинга
-- [x] Есть дашборд, в котором можно посмотреть логи и состояние приложения
+Подготовка инфраструктуры для приложения происходит с помощью [Terraform](https://www.terraform.io/) и [Yandex.Cloud Provider](https://cloud.yandex.ru/docs/tutorials/infrastructure-management/terraform-quickstart).
 
-### Предварительная подготовка для работы с проектом
+## Содержание CI/CD-пайплайна
+<a name="cicd_pipeline"></a>
+
+<p align="center">
+  <img src="https://storage.yandexcloud.net/git-example/ci-cd-pipeline.png">
+</p>
+
+Пайплайн непрерывной интеграции / непрерывной доставки содержит следующие этапы:
+  - Test
+  - Build
+  - Release
+  - Deploy
+
+Используется механизм GitLab [Downstream pipeline](https://docs.gitlab.com/ee/ci/pipelines/downstream_pipelines.html), позволяющий одновременно и независимо выполнять задачи пайплайна для фронтенда и бэкенда.  
+`Child pipeline backend/.gitlab-ci.yml` будет запущен только при изменениях в каталоге `backend`.  
+`Child pipeline frontend/.gitlab-ci.yml` будет запущен только при изменениях в каталоге `frontend`.  
+
+![](https://storage.yandexcloud.net/git-example/module-pipeline.gif)
+
+При определении успешности статуса выполнения пайплайнов `module-backend` и `module-frontend` происходит [ожидание](https://docs.gitlab.com/ee/ci/yaml/index.html#triggerstrategy) окончания выполнения пайплайнов `backend/.gitlab-ci.yml` и `frontend/.gitlab-ci.yml`.
+
+
+### Задачи, выполняемые на каждом из этапов CI/CD
+<a name="cicd_pipeline_tasks"></a>
+
+<p align="center">
+  <img src="https://storage.yandexcloud.net/git-example/backend-pipeline-1.png">
+</p>
+
+
+#### **Test**
+<a name="cicd_pipeline_test"></a>
+
+  - [go test](https://pkg.go.dev/testing)
+    - Находит все тесты для всех файлов в директории `backend` и запускает их.
+  - [go vet](https://pkg.go.dev/cmd/vet)
+    - Проверяет код на наличие синтаксических ошибок и подозрительных конструкций.
+  - [semgrep-sast](https://semgrep.dev/)
+    - Запускает инструмент статического анализа для поиска ошибок в коде.
+  - [sonarqube-backend](https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/languages/go/)
+    - Запускает платформу для непрерывной оценки качества кода путем статического анализа. После окончания работы формируется [отчет](https://storage.yandexcloud.net/git-example/sonarqube.png) с рекомендациями по устранению найденных ошибок.
+
+#### **Build**
+<a name="cicd_pipeline_build"></a>
+
+  - [compile](https://storage.yandexcloud.net/git-example/compile.png)
+    - Выполняет команду [go build](https://pkg.go.dev/cmd/go#hdr-Compile_packages_and_dependencies). В результате формируется и становится [артефактом](https://docs.gitlab.com/ee/ci/jobs/job_artifacts.html) исполняемый файл `$CI_PROJECT_DIR/backend/bin/api`
+  - [docker-backend-image-build](https://storage.yandexcloud.net/git-example/docker-image-build.png)
+    - Формирует Docker image, проставляет tag с номером версии вместе с `latest`. Публикация полученного Docker image происходит в [GitLab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/) и [Docker Hub](https://hub.docker.com/r/stanbtkv/momo-backend/tags).
+  - [package](https://storage.yandexcloud.net/git-example/package-registry.png)
+    - Помещает артефакт `$CI_PROJECT_DIR/backend/bin/api` в [GitLab Package Registry](https://docs.gitlab.com/ee/user/packages/package_registry/)
+
+Версионирование происходит согласно правилам [SemVer](https://semver.org/lang/ru/) в формате _мажорная.минорная.патч_, где в качестве _.патч_-номера используется переменная GitLab `${CI_PIPELINE_ID}`.
+
+#### **Release**
+<a name="cicd_pipeline_release"></a>
+
+  - [helm-release](https://storage.yandexcloud.net/git-example/helm-release.png)
+    - Выполняет команду `helm package . --app-version ${VERSION} --version ${VERSION}` в каталоге `/helm/backend`. В результате создаётся helm-чарт с заполненными [полями](https://helm.sh/docs/topics/charts/#the-chartyaml-file) `Chart version` и `App version`. Затем helm-чарт выгружается в репозиторий [Sonatype Nexus](https://storage.yandexcloud.net/git-example/nexus-repo.png).
+
+
+#### **Deploy**
+<a name="cicd_pipeline_deploy"></a>
+
+<p align="center">
+  <img src="https://storage.yandexcloud.net/git-example/argocd.png">
+</p>
+
+Непрерывное развертывание реализовано с помощью [Argo CD](https://argo-cd.readthedocs.io/) через Pull deployment в кластер Kubernetes. 
+
+![](https://storage.yandexcloud.net/git-example/argocd-apps.gif)
+
+##### Добавление репозитория и приложения в Argo CD
+  - [argocd repo add](https://argo-cd.readthedocs.io/en/latest/user-guide/commands/argocd_repo_add/)
+    - Добавляет репозиторий Nexus c Helm-чартами для приложения.
+  - [argocd app create](https://argo-cd.readthedocs.io/en/latest/user-guide/commands/argocd_app_create/)
+    - Добавляет приложение для синхронизации с кластером Kubernetes. Для автоматической синхронизации необходим параметр `--sync-policy auto`.
+
+
+## **Мониторинг**
+<a name="monitoring"></a>
+
+### Мониторинг приложения
+<a name="app_monitoring"></a>
+
+
+![](https://storage.yandexcloud.net/git-example/golden-signals.png)
+
+
+Существует несколько широко распространенных методологий мониторинга приложений:
+  - ["Золотые сигналы"](https://sre.google/sre-book/monitoring-distributed-systems/)
+    - Задержка (Latency), Трафик (Traffic), Ошибки (Errors), Насыщенность (Saturation).
+  - [Метод USE](https://www.brendangregg.com/usemethod.html)
+    - Использование (Utilization), Насыщенность (Saturation), Ошибки (Errors).
+  - [Метод RED](https://grafana.com/blog/2018/08/02/the-red-method-how-to-instrument-your-services/)
+    - Частота (Rate), Ошибки (Errors), Продолжительность (Duration).
+
+
+<details>
+  <summary>Метрики тестового веб-приложения</summary>
+
+  ```
+  # https://backend.acmecorp.ru/metrics
+  #
+  # HELP dumplings_listing_count Number of times dumplings pack has been listed
+  # TYPE dumplings_listing_count counter
+  dumplings_listing_count{id="1"} 2
+  dumplings_listing_count{id="10"} 2
+  dumplings_listing_count{id="11"} 2
+  dumplings_listing_count{id="12"} 2
+  dumplings_listing_count{id="13"} 2
+  dumplings_listing_count{id="14"} 2
+  dumplings_listing_count{id="2"} 2
+  dumplings_listing_count{id="3"} 2
+  dumplings_listing_count{id="4"} 2
+  dumplings_listing_count{id="5"} 2
+  dumplings_listing_count{id="6"} 2
+  dumplings_listing_count{id="7"} 2
+  dumplings_listing_count{id="8"} 2
+  dumplings_listing_count{id="9"} 2
+  # HELP orders_count Number of dumplings orders
+  # TYPE orders_count counter
+  orders_count 0
+  # HELP requests_count Number of HTTP requests made
+  # TYPE requests_count counter
+  requests_count 4
+  # HELP response_timing_ms Response timings in milliseconds
+  # TYPE response_timing_ms histogram
+  response_timing_ms_bucket{handler="/auth/whoami/",le="0"} 0
+  response_timing_ms_bucket{handler="/auth/whoami/",le="50"} 0
+  response_timing_ms_bucket{handler="/auth/whoami/",le="100"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="150"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="200"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="250"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="300"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="350"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="400"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="450"} 1
+  response_timing_ms_bucket{handler="/auth/whoami/",le="+Inf"} 1
+  response_timing_ms_sum{handler="/auth/whoami/"} 91
+  response_timing_ms_count{handler="/auth/whoami/"} 1
+  response_timing_ms_bucket{handler="/categories/",le="0"} 1
+  response_timing_ms_bucket{handler="/categories/",le="50"} 1
+  response_timing_ms_bucket{handler="/categories/",le="100"} 1
+  response_timing_ms_bucket{handler="/categories/",le="150"} 1
+  response_timing_ms_bucket{handler="/categories/",le="200"} 1
+  response_timing_ms_bucket{handler="/categories/",le="250"} 1
+  response_timing_ms_bucket{handler="/categories/",le="300"} 1
+  response_timing_ms_bucket{handler="/categories/",le="350"} 1
+  response_timing_ms_bucket{handler="/categories/",le="400"} 1
+  response_timing_ms_bucket{handler="/categories/",le="450"} 1
+  response_timing_ms_bucket{handler="/categories/",le="+Inf"} 1
+  response_timing_ms_sum{handler="/categories/"} 0
+  response_timing_ms_count{handler="/categories/"} 1
+  response_timing_ms_bucket{handler="/products",le="0"} 1
+  response_timing_ms_bucket{handler="/products",le="50"} 1
+  response_timing_ms_bucket{handler="/products",le="100"} 1
+  response_timing_ms_bucket{handler="/products",le="150"} 1
+  response_timing_ms_bucket{handler="/products",le="200"} 1
+  response_timing_ms_bucket{handler="/products",le="250"} 1
+  response_timing_ms_bucket{handler="/products",le="300"} 1
+  response_timing_ms_bucket{handler="/products",le="350"} 1
+  response_timing_ms_bucket{handler="/products",le="400"} 1
+  response_timing_ms_bucket{handler="/products",le="450"} 1
+  response_timing_ms_bucket{handler="/products",le="+Inf"} 1
+  response_timing_ms_sum{handler="/products"} 0
+  response_timing_ms_count{handler="/products"} 1
+  response_timing_ms_bucket{handler="/products/",le="0"} 0
+  response_timing_ms_bucket{handler="/products/",le="50"} 1
+  response_timing_ms_bucket{handler="/products/",le="100"} 1
+  response_timing_ms_bucket{handler="/products/",le="150"} 1
+  response_timing_ms_bucket{handler="/products/",le="200"} 1
+  response_timing_ms_bucket{handler="/products/",le="250"} 1
+  response_timing_ms_bucket{handler="/products/",le="300"} 1
+  response_timing_ms_bucket{handler="/products/",le="350"} 1
+  response_timing_ms_bucket{handler="/products/",le="400"} 1
+  response_timing_ms_bucket{handler="/products/",le="450"} 1
+  response_timing_ms_bucket{handler="/products/",le="+Inf"} 1
+  response_timing_ms_sum{handler="/products/"} 3
+  response_timing_ms_count{handler="/products/"} 1
+  ```
+</details>
+
+
+Запросы PromQL по методологии "Золотых сигналов" будут выглядеть следующим образом:
+
+**Задержка (Latency)**
+```
+sum(response_timing_ms_sum{handler="/products/"})/sum(response_timing_ms_count{handler="/products/"})
+```
+
+**Трафик (Traffic)**
+```
+sum(rate(requests_count[5m]))
+```
+
+**Ошибки (Errors)**
+```
+sum(rate(http_request_duration_seconds_count{code!="200"}[10m]))
+```
+
+**Насыщенность (Saturation)**
+```
+100 - (avg by (node) (irate(node_cpu_seconds_total{node="int-kubernetes-master"}[5m])) * 100)
+100 - (avg by (node) (irate(node_cpu_seconds_total{node="int-node-1"}[5m])) * 100)
+100 - (avg by (node) (irate(node_cpu_seconds_total{node="int-node-2"}[5m])) * 100)
+```
+
+
+
+
+### Мониторинг кластера Kubernetes
+<a name="k8s_monitoring"></a>
+
+Для [визуализации](https://storage.yandexcloud.net/git-example/grafana-cluster-monitoring.gif) мониторинга кластера Kubernetes подходят [готовые](https://grafana.com/grafana/dashboards/8588-1-kubernetes-deployment-statefulset-daemonset-metrics/) [дашборды](https://grafana.com/grafana/dashboards/18882-well-kubernetes-nodes/).  
+
+Получившийся результат:  
+
+<p align="center">
+  <img src="https://storage.yandexcloud.net/git-example/kubernetes-dashboards-lossy.gif">
+</p>
+
+
+
+## Подготовка инфраструктуры
+<a name="infrastructure"></a>
+
+### Yandex.Cloud
+<a name="cloud_infrastructure"></a>
+
+#### Предварительная подготовка для работы с проектом
 
  - Установить [yc](https://cloud.yandex.ru/docs/cli/operations/install-cli)
  - Установить [Terraform](https://cloud.yandex.ru/docs/tutorials/infrastructure-management/terraform-quickstart) и настроить провайдер Yandex Cloud
@@ -47,13 +275,10 @@
  - Установить [helm3](https://helm.sh/docs/intro/install/)
  - Установить [Argocd CLI](https://github.com/argoproj/argo-cd) (опционально)
 
-
-### Установка кластера Managed Kubernetes в Yandex Cloud
+#### Установка кластера Managed Kubernetes в Yandex Cloud
 Кластер Managed Kubernetes устанавливается с помощью Terraform.
 Состояние Terraform хранится в Yandex Object Storage, конфигурация описана в файле backend.conf.
 Перед установкой необходимо заполнить файлы **backend.conf** и **secret.auto.tfvars** собственными данными. Примеры заполнения файлов backend.conf и secret.auto.tfvars находятся в файлах **backend.conf.example** и **secret.auto.tfvars.example**.
-
-
 
 Порядок выполнения команд Terraform для инициализации кластера Managed Kubernetes:
    ```
@@ -62,35 +287,29 @@
     terraform plan
     terraform apply
    ```
+
 После успешного выполнения операции в консоль будет выведен идентификатор кластера, который нужно использовать на следующем шаге ("ID_кластера").
 
 После инициализации кластера необходимо:
-
  - сформировать конфигурационный файл для подключения к кластеру с помощью yc
-
     yc managed-kubernetes cluster get-credentials --id ID_кластера --internal
-
-
  - установить [NGINX Ingress Controller](https://cloud.yandex.ru/docs/managed-kubernetes/tutorials/ingress-cert-manager) с менеджером для сертификатов Let's Encrypt
 
 
-### Как происходит работа с репозиторием и обновление приложения
-После появления новой версии frontend или backend в результате выполнения пайплайна GitLab собирается новый docker image, Helm-чарт формируется, версионируется и публикуется в Nexus.
-ArgoCD настроен на обновление приложений в режиме Auto-Sync и при появлении новой версии Helm-чарта в Nexus обновление произойдет автоматически.
+### Для локального тестирования
+<a name="local_infrastructure"></a>
 
+Для локального тестирования потребуются две группы виртуальных машин:
 
-### Ссылки на приложение и инструменты
- - [ ] https://argocd.momo-store.ru/
- - [ ] https://grafana.momo-store.ru/
+- ВМ с установленными сервисами Traefik, GitLab, Nexus, Minio, Sonarqube
+  - GitLab Runner 1
+  - GitLab Runner 2
+ 
+- Kubernetes Control Plane
+  - Kubernetes Node 1
+  - Kubernetes Node 2
 
-**Helm-чарты**
- - [ ] https://nexus.praktikum-services.ru/#browse/browse:helmfront11
- - [ ] https://nexus.praktikum-services.ru/#browse/browse:helmback11
+YAML-файлы для Docker Compose находятся в каталоге `infrastructure\local\docker-compose\`. Перед использованием необходимо переименовать `example.env` в `.env` и заполнить эти файлы собственными значениями.
 
-**Docker Hub**
- - [ ] https://hub.docker.com/repository/docker/stanbtkv/momo-frontend
- - [ ] https://hub.docker.com/repository/docker/stanbtkv/momo-backend
+Для автоматического [получения](https://doc.traefik.io/traefik/https/acme/) сертификатов LetsEncrypt необходимо [делегировать](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/) домен на DNS-серверы CloudFlare и указать переменные `CLOUDFLARE_EMAIL`, `CLOUDFLARE_DNS_API_TOKEN`.
 
-
-**И самое главное - наша новая пельменная**:
- - [ ] https://momo-store.ru/
