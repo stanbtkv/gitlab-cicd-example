@@ -214,14 +214,14 @@ sum(rate(http_request_duration_seconds_count{code!="200"}[10m]))
  - установить [NGINX Ingress Controller](https://cloud.yandex.ru/docs/managed-kubernetes/tutorials/ingress-cert-manager) с менеджером для сертификатов Let's Encrypt
 
 
-### Для локального тестирования
+### Подготовка инфраструктуры для локального тестирования
 <a name="local_infrastructure"></a>
 
 YAML-файлы для установки всех сервисов с помощью Docker Compose находятся в каталоге `infrastructure\local\docker-compose\`. Перед использованием необходимо переименовать `example.env` в `.env` и заполнить эти файлы собственными значениями.
 
 Для автоматического [получения](https://doc.traefik.io/traefik/https/acme/) сертификатов LetsEncrypt необходимо [делегировать](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/) домен на DNS-серверы CloudFlare и указать переменные `CLOUDFLARE_EMAIL`, `CLOUDFLARE_DNS_API_TOKEN`.
 
-### Настройка GitLab Runner
+#### Настройка GitLab Runner
 <a name="gitlab_runner_setup"></a>
 В примере конфигурационного файла `\infrastructure\local\docker-compose\gitlab-runner\config.toml` блок
 ```yaml
