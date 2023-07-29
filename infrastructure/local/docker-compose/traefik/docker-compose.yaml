@@ -1,0 +1,63 @@
+services:
+  traefik:
+    container_name: "traefik"
+    image: "traefik:${TAG}"
+    restart: unless-stopped
+    networks:
+      - "${NETWORKS_NAME}"
+    command:
+      - "--log.level=${LOG_LEVEL}"
+      - "--api=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+          # entrypoints
+          # Порт 80 и 443 будут доступны извне, на них можно ссылаться по алиасам "web" и "websecure"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+          # Перенаправление с HTTP на HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"    # При попытке доступа к порту 80 перенаправлять на порт 443
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"    # При попытке доступа по HTTP перенаправлять на HTTPS
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"  # Перенаправление является постоянным
+      # LetsEncrypt
+      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge=true"
+      - "--certificatesresolvers.mydnschallenge.acme.caserver=${STAGING_ACME_SERVER}"
+      # После окончания тестирования заменить acme.caserver на PRODUCTION_ACME_SERVER
+      #- "--certificatesresolvers.mydnschallenge.acme.caserver=${PRODUCTION_ACME_SERVER}"
+      - "--certificatesresolvers.mydnschallenge.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge.provider=${ACME_PROVIDER}"
+      - "--certificatesresolvers.mydnschallenge.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.mydnschallenge.acme.dnschallenge.resolvers=8.8.8.8:53,1.1.1.1:53"
+    environment:
+      - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
+      - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "${LETSENCRYPT_PATH}:/letsencrypt"
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`${DASHBOARD_FQDN}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=mydnschallenge"
+      - "traefik.http.routers.dashboard.tls.domains[0].main=${DOMAIN_FQDN}"
+      - "traefik.http.routers.dashboard.tls.domains[0].sans=*.${DOMAIN_FQDN}"
+#------------------------------------------------------------------
+      # Генерация пароля для Traefik Dashboard
+      # htpasswd -nbs Имя_пользователя Пароль
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${DASHBOARD_USERNAME}:${DASHBOARD_PASSWORD}"
+#------------------------------------------------------------------
+
+networks:
+  cicdnetwork:
+    name: ${NETWORKS_NAME}
+    ipam:
+      driver: default
+      config:
+        - subnet: "${NETWORKS_SUBNET}"

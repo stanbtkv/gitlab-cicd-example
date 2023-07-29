@@ -1,0 +1,47 @@
+services:
+  sonarqube:
+    image: sonarqube:${TAG}
+    container_name: sonarqube
+    restart: always
+    networks:
+      - "${NETWORKS_NAME}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarqube.rule=Host(`${SONARQUBE_FQDN}`)"
+      - "traefik.http.routers.sonarqube.entrypoints=websecure"
+      - "traefik.http.routers.sonarqube.tls=true"
+      - "traefik.http.services.sonarqube.loadbalancer.server.port=9000"
+    hostname: '${SONARQUBE_FQDN}'
+    depends_on:
+      - db
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/${SONAR_JDBC_USERNAME}
+      SONAR_JDBC_USERNAME: ${SONAR_JDBC_USERNAME}
+      SONAR_JDBC_PASSWORD: ${SONAR_JDBC_PASSWORD}
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+  db:
+    image: ${DB_DOCKER_IMAGE}
+    container_name: ${DB_CONTAINER_NAME}
+    restart: always
+    networks:
+      - "${NETWORKS_NAME}"
+    environment:
+      POSTGRES_USER: ${SONAR_JDBC_USERNAME}
+      POSTGRES_PASSWORD: ${SONAR_JDBC_PASSWORD}
+    volumes:
+      - postgresql:/var/lib/postgresql
+      - postgresql_data:/var/lib/postgresql/data
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  postgresql:
+  postgresql_data:
+
+networks:
+  cicdnetwork:
+    external: true

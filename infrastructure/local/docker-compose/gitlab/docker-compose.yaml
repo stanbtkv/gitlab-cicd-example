@@ -1,0 +1,41 @@
+services:
+  gitlab:
+    image: 'gitlab/gitlab-ce:${TAG}'
+    container_name: gitlab
+    restart: always
+    networks:
+      - "${NETWORKS_NAME}"
+    labels:
+      - "traefik.enable=true"
+       # Gitlab
+      - "traefik.http.routers.gitlab.rule=Host(`${GITLAB_FQDN}`)"
+      - "traefik.http.routers.gitlab.entrypoints=websecure"
+      - "traefik.http.routers.gitlab.tls=true"
+      - "traefik.http.routers.gitlab.service=gitlab"
+      - "traefik.http.services.gitlab.loadbalancer.server.port=80"
+       # Gitlab Registry
+      - "traefik.http.routers.registry.rule=Host(`${GITLAB_REGISTRY_FQDN}`)"
+      - "traefik.http.routers.registry.entrypoints=websecure"
+      - "traefik.http.routers.registry.tls=true"
+      - "traefik.http.routers.registry.service=registry"
+      - "traefik.http.services.registry.loadbalancer.server.port=5000"
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url '${GITLAB_EXTERNAL_URL}'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        registry_external_url '${GITLAB_REGISTRY_EXTERNAL_URL}'
+        registry['enable'] = true
+        registry_nginx['listen_https'] = false
+        registry_nginx['enable'] = false
+        registry['registry_http_addr'] = "0.0.0.0:5000"
+    volumes:
+      - '${GITLAB_CONFIG}:/etc/gitlab'
+      - '${GITLAB_LOGS}:/var/log/gitlab'
+      - '${GITLAB_DATA}:/var/opt/gitlab'
+    shm_size: '256m'
+
+networks:
+  cicdnetwork:
+    external: true
+

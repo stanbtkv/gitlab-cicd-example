@@ -1,0 +1,21 @@
+services:
+  nexus:
+    image: 'sonatype/nexus3:${TAG}'
+    container_name: nexus
+    restart: always
+    networks:
+      - "${NETWORKS_NAME}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nexus.rule=Host(`${NEXUS_FQDN}`)"
+      - "traefik.http.routers.nexus.entrypoints=websecure"
+      - "traefik.http.routers.nexus.tls=true"
+      - "traefik.http.services.nexus.loadbalancer.server.port=8081"
+    hostname: '${NEXUS_FQDN}'
+    volumes:
+      - '${NEXUS_DATA}:/nexus-data'
+
+networks:
+  cicdnetwork:
+    external: true
+

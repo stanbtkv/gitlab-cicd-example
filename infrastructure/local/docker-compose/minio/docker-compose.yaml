@@ -1,0 +1,35 @@
+services:
+  minio:
+    image: minio/minio:${TAG}
+    container_name: minio
+    command: server /data --address ":9000" --console-address ":9001"
+    user: 1000:1000
+    volumes:
+      - ${MINIO_DATA}:/data
+    restart: unless-stopped
+    networks:
+      - "${NETWORKS_NAME}"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_DOMAIN=${MINIO_DOMAIN}
+      - MINIO_SERVER_URL=${MINIO_SERVER_URL}
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL}
+    labels:
+      - "traefik.enable=true"
+       # Console
+      - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_FQDN}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls=true"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+       # APi
+      - "traefik.http.routers.minio.rule=Host(`${MINIO_DOMAIN}`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.routers.minio.tls=true"
+      - "traefik.http.routers.minio.service=minio"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+
+networks:
+  cicdnetwork:
+    external: true
