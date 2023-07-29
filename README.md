@@ -275,13 +275,13 @@ sum(rate(http_request_duration_seconds_count{code!="200"}[10m]))
  - Установить [helm3](https://helm.sh/docs/intro/install/)
  - Установить [Argocd CLI](https://github.com/argoproj/argo-cd) (опционально)
 
-#### Установка кластера Managed Kubernetes в Yandex Cloud
+#### Установка кластера Managed Kubernetes в Yandex.Cloud
 Кластер Managed Kubernetes устанавливается с помощью Terraform.
-Состояние Terraform хранится в Yandex Object Storage, конфигурация описана в файле backend.conf.
-Перед установкой необходимо заполнить файлы **backend.conf** и **secret.auto.tfvars** собственными данными. Примеры заполнения файлов backend.conf и secret.auto.tfvars находятся в файлах **backend.conf.example** и **secret.auto.tfvars.example**.
+Состояние Terraform хранится в Yandex Object Storage, конфигурация описана в файле `backend.conf`.
+Перед установкой необходимо заполнить файлы `\infrastructure\cloud\terraform\backend.conf` и `\infrastructure\cloud\terraform\secret.auto.tfvars` собственными данными. Примеры заполнения файлов находятся в `backend.conf.example` и `secret.auto.tfvars.example`.
 
 Порядок выполнения команд Terraform для инициализации кластера Managed Kubernetes:
-   ```
+   ```bash
     terraform init -backend-config=backend.conf
     terraform validate
     terraform plan
