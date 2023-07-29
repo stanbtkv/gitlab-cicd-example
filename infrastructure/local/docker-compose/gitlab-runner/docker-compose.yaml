@@ -1,0 +1,8 @@
+services:
+  gitlab-runner:
+    image: gitlab/gitlab-runner:${TAG}
+    container_name: gitlab-runner
+    volumes:
+      - ${CONFIG_DIR}:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always

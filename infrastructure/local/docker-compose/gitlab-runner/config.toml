@@ -1,0 +1,34 @@
+concurrent = 4
+check_interval = 0
+shutdown_timeout = 0
+
+[session_server]
+  session_timeout = 1800
+
+[[runners]]
+  name = "gitlab-runner-1"
+  url = "https://gitlab.example.com/"
+  id = 1
+  token = "Токен"
+  token_obtained_at = 2023-07-02T12:10:24Z
+  token_expires_at = 0001-01-01T00:00:00Z
+  executor = "docker"
+  [runners.docker]
+    tls_verify = false
+    image = "alpine:3.18.2"
+    privileged = true
+    disable_entrypoint_overwrite = false
+    oom_kill_disable = false
+    disable_cache = false
+    volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock"]
+    shm_size = 0
+  [runners.cache]
+    Type = "s3"
+    Path = "runner/cache"
+    Shared = true
+    [runners.cache.s3]
+      ServerAddress = "minio.example.com"
+      AccessKey = "AccessKey_content"
+      SecretKey = "AccessKey_content"
+      BucketName = "gitlab_bucket"
+      Insecure = false

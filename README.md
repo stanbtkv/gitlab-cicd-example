@@ -16,7 +16,10 @@
   - [Мониторинг кластера Kubernetes](#k8s_monitoring)
 - [Подготовка инфраструктуры](#infrastructure)
   - [Yandex.Cloud](#cloud_infrastructure)
-  - [Для локального тестирования](#local_infrastructure)  
+  - [Для локального тестирования](#local_infrastructure)
+    - [Настройка GitLab Runner](#gitlab_runner_setup)
+    - [Настройка кластера Kubernetes](#kubernetes_setup)  
+
 
 ## Описание репозитория
 <a name="repo_desc"></a>
@@ -132,93 +135,7 @@
   - [Метод USE](https://www.brendangregg.com/usemethod.html)
     - Использование (Utilization), Насыщенность (Saturation), Ошибки (Errors).
   - [Метод RED](https://grafana.com/blog/2018/08/02/the-red-method-how-to-instrument-your-services/)
-    - Частота (Rate), Ошибки (Errors), Продолжительность (Duration).
-
-
-<details>
-  <summary>Метрики тестового веб-приложения</summary>
-
-  ```
-  # https://backend.acmecorp.ru/metrics
-  #
-  # HELP dumplings_listing_count Number of times dumplings pack has been listed
-  # TYPE dumplings_listing_count counter
-  dumplings_listing_count{id="1"} 2
-  dumplings_listing_count{id="10"} 2
-  dumplings_listing_count{id="11"} 2
-  dumplings_listing_count{id="12"} 2
-  dumplings_listing_count{id="13"} 2
-  dumplings_listing_count{id="14"} 2
-  dumplings_listing_count{id="2"} 2
-  dumplings_listing_count{id="3"} 2
-  dumplings_listing_count{id="4"} 2
-  dumplings_listing_count{id="5"} 2
-  dumplings_listing_count{id="6"} 2
-  dumplings_listing_count{id="7"} 2
-  dumplings_listing_count{id="8"} 2
-  dumplings_listing_count{id="9"} 2
-  # HELP orders_count Number of dumplings orders
-  # TYPE orders_count counter
-  orders_count 0
-  # HELP requests_count Number of HTTP requests made
-  # TYPE requests_count counter
-  requests_count 4
-  # HELP response_timing_ms Response timings in milliseconds
-  # TYPE response_timing_ms histogram
-  response_timing_ms_bucket{handler="/auth/whoami/",le="0"} 0
-  response_timing_ms_bucket{handler="/auth/whoami/",le="50"} 0
-  response_timing_ms_bucket{handler="/auth/whoami/",le="100"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="150"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="200"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="250"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="300"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="350"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="400"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="450"} 1
-  response_timing_ms_bucket{handler="/auth/whoami/",le="+Inf"} 1
-  response_timing_ms_sum{handler="/auth/whoami/"} 91
-  response_timing_ms_count{handler="/auth/whoami/"} 1
-  response_timing_ms_bucket{handler="/categories/",le="0"} 1
-  response_timing_ms_bucket{handler="/categories/",le="50"} 1
-  response_timing_ms_bucket{handler="/categories/",le="100"} 1
-  response_timing_ms_bucket{handler="/categories/",le="150"} 1
-  response_timing_ms_bucket{handler="/categories/",le="200"} 1
-  response_timing_ms_bucket{handler="/categories/",le="250"} 1
-  response_timing_ms_bucket{handler="/categories/",le="300"} 1
-  response_timing_ms_bucket{handler="/categories/",le="350"} 1
-  response_timing_ms_bucket{handler="/categories/",le="400"} 1
-  response_timing_ms_bucket{handler="/categories/",le="450"} 1
-  response_timing_ms_bucket{handler="/categories/",le="+Inf"} 1
-  response_timing_ms_sum{handler="/categories/"} 0
-  response_timing_ms_count{handler="/categories/"} 1
-  response_timing_ms_bucket{handler="/products",le="0"} 1
-  response_timing_ms_bucket{handler="/products",le="50"} 1
-  response_timing_ms_bucket{handler="/products",le="100"} 1
-  response_timing_ms_bucket{handler="/products",le="150"} 1
-  response_timing_ms_bucket{handler="/products",le="200"} 1
-  response_timing_ms_bucket{handler="/products",le="250"} 1
-  response_timing_ms_bucket{handler="/products",le="300"} 1
-  response_timing_ms_bucket{handler="/products",le="350"} 1
-  response_timing_ms_bucket{handler="/products",le="400"} 1
-  response_timing_ms_bucket{handler="/products",le="450"} 1
-  response_timing_ms_bucket{handler="/products",le="+Inf"} 1
-  response_timing_ms_sum{handler="/products"} 0
-  response_timing_ms_count{handler="/products"} 1
-  response_timing_ms_bucket{handler="/products/",le="0"} 0
-  response_timing_ms_bucket{handler="/products/",le="50"} 1
-  response_timing_ms_bucket{handler="/products/",le="100"} 1
-  response_timing_ms_bucket{handler="/products/",le="150"} 1
-  response_timing_ms_bucket{handler="/products/",le="200"} 1
-  response_timing_ms_bucket{handler="/products/",le="250"} 1
-  response_timing_ms_bucket{handler="/products/",le="300"} 1
-  response_timing_ms_bucket{handler="/products/",le="350"} 1
-  response_timing_ms_bucket{handler="/products/",le="400"} 1
-  response_timing_ms_bucket{handler="/products/",le="450"} 1
-  response_timing_ms_bucket{handler="/products/",le="+Inf"} 1
-  response_timing_ms_sum{handler="/products/"} 3
-  response_timing_ms_count{handler="/products/"} 1
-  ```
-</details>
+    - Частота (Rate), Ошибки (Errors), Продолжительность (Duration).  
 
 
 Запросы PromQL по методологии "Золотых сигналов" будут выглядеть следующим образом:
@@ -268,48 +185,59 @@ sum(rate(http_request_duration_seconds_count{code!="200"}[10m]))
 <a name="cloud_infrastructure"></a>
 
 #### Предварительная подготовка для работы с проектом
+Перед началом работы необходимо установить:
+ - [yc](https://cloud.yandex.ru/docs/cli/operations/install-cli)
+ - [Terraform](https://cloud.yandex.ru/docs/tutorials/infrastructure-management/terraform-quickstart)
+ - [Yandex.Cloud Terraform Provider](https://cloud.yandex.ru/docs/tutorials/infrastructure-management/terraform-quickstart)
+ - [kubectl](https://kubernetes.io/ru/docs/tasks/tools/install-kubectl/)
+ - [helm3](https://helm.sh/docs/intro/install/)
+ - [Argo CD CLI](https://github.com/argoproj/argo-cd)
 
- - Установить [yc](https://cloud.yandex.ru/docs/cli/operations/install-cli)
- - Установить [Terraform](https://cloud.yandex.ru/docs/tutorials/infrastructure-management/terraform-quickstart) и настроить провайдер Yandex Cloud
- - Установить [kubectl](https://kubernetes.io/ru/docs/tasks/tools/install-kubectl/)
- - Установить [helm3](https://helm.sh/docs/intro/install/)
- - Установить [Argocd CLI](https://github.com/argoproj/argo-cd) (опционально)
-
-#### Установка кластера Managed Kubernetes в Yandex.Cloud
-Кластер Managed Kubernetes устанавливается с помощью Terraform.
-Состояние Terraform хранится в Yandex Object Storage, конфигурация описана в файле `backend.conf`.
-Перед установкой необходимо заполнить файлы `\infrastructure\cloud\terraform\backend.conf` и `\infrastructure\cloud\terraform\secret.auto.tfvars` собственными данными. Примеры заполнения файлов находятся в `backend.conf.example` и `secret.auto.tfvars.example`.
+#### Установка кластера Managed Kubernetes в Yandex Cloud
+Кластер Managed Kubernetes настраивается с помощью Terraform.
+Состояние Terraform хранится в Yandex Object Storage, конфигурация описана в файле backend.conf.
+Перед установкой необходимо заполнить файлы **backend.conf** и **secret.auto.tfvars** собственными данными. Примеры заполнения файлов backend.conf и secret.auto.tfvars находятся в файлах **backend.conf.example** и **secret.auto.tfvars.example**.
 
 Порядок выполнения команд Terraform для инициализации кластера Managed Kubernetes:
-   ```bash
+   ```
     terraform init -backend-config=backend.conf
     terraform validate
     terraform plan
     terraform apply
    ```
 
-После успешного выполнения операции в консоль будет выведен идентификатор кластера, который нужно использовать на следующем шаге ("ID_кластера").
+После успешного выполнения операции в консоль будет выведен идентификатор кластера, который нужно использовать на следующем шаге (`ID_кластера`).
 
 После инициализации кластера необходимо:
  - сформировать конфигурационный файл для подключения к кластеру с помощью yc
-    yc managed-kubernetes cluster get-credentials --id ID_кластера --internal
+    `yc managed-kubernetes cluster get-credentials --id ID_кластера --internal`
  - установить [NGINX Ingress Controller](https://cloud.yandex.ru/docs/managed-kubernetes/tutorials/ingress-cert-manager) с менеджером для сертификатов Let's Encrypt
 
 
 ### Для локального тестирования
 <a name="local_infrastructure"></a>
 
-Для локального тестирования потребуются две группы виртуальных машин:
-
-- ВМ с установленными сервисами Traefik, GitLab, Nexus, Minio, Sonarqube
-  - GitLab Runner 1
-  - GitLab Runner 2
- 
-- Kubernetes Control Plane
-  - Kubernetes Node 1
-  - Kubernetes Node 2
-
-YAML-файлы для Docker Compose находятся в каталоге `infrastructure\local\docker-compose\`. Перед использованием необходимо переименовать `example.env` в `.env` и заполнить эти файлы собственными значениями.
+YAML-файлы для установки всех сервисов с помощью Docker Compose находятся в каталоге `infrastructure\local\docker-compose\`. Перед использованием необходимо переименовать `example.env` в `.env` и заполнить эти файлы собственными значениями.
 
 Для автоматического [получения](https://doc.traefik.io/traefik/https/acme/) сертификатов LetsEncrypt необходимо [делегировать](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/) домен на DNS-серверы CloudFlare и указать переменные `CLOUDFLARE_EMAIL`, `CLOUDFLARE_DNS_API_TOKEN`.
+
+### Настройка GitLab Runner
+<a name="gitlab_runner_setup"></a>
+В примере конфигурационного файла `\infrastructure\local\docker-compose\gitlab-runner\config.toml` блок
+```yaml
+  [runners.cache]
+    Type = "s3"
+    Path = "runner/cache"
+    Shared = true
+    [runners.cache.s3]
+      ServerAddress = "minio.example.com"
+      AccessKey = "AccessKey_content"
+      SecretKey = "AccessKey_content"
+      BucketName = "gitlab_bucket"
+      Insecure = false
+```
+отвечает за настройку хранения кэша раннера в объектном храненилище MinIO.
+
+### Настройка кластера Kubernetes
+<a name="kubernetes_setup"></a>
 
