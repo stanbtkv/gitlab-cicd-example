@@ -224,7 +224,7 @@ YAML-файлы для установки всех сервисов с помо�
 #### Настройка GitLab Runner
 <a name="gitlab_runner_setup"></a>
 
-Для [настройки](https://docs.gitlab.com/runner/configuration/autoscale.html#distributed-runners-caching) хранения кэша раннера в объектном храненилище MinIO в конфигурационный файл `config.toml` нужно добавить:
+Для [настройки](https://docs.gitlab.com/runner/configuration/autoscale.html#distributed-runners-caching) хранения кэша раннера в объектном хранилище MinIO в конфигурационный файл `config.toml` нужно добавить:
 
 ```yaml
   [runners.cache]
