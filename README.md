@@ -242,3 +242,127 @@ YAML-файлы для установки всех сервисов с помо�
 ### Настройка кластера Kubernetes
 <a name="kubernetes_setup"></a>
 
+#### Предварительная подготовка, установка пакетов
+
+**Отключение swap на всех ВМ**
+```bash
+swapoff -a
+
+# nano /etc/fstab
+# /swap.img      none    swap    sw      0       0
+```
+
+**Проверка [уникальности](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#verify-mac-address) MAC-адресов и параметра `product_uuid` на всех ВМ**
+
+```bash
+ip link
+sudo cat /sys/class/dmi/id/product_uuid
+```
+
+**Установка ebtables и ethtool**
+```bash
+apt install ebtables ethtool
+```
+
+**Установка kubeadm, kubelet, kubectl**
+```bash
+apt-get install -y apt-transport-https ca-certificates curl
+
+curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+```
+
+**Проверка версий установленных пакетов**
+```bash
+# kubeadm version
+kubeadm version: &version.Info{Major:"1", Minor:"27", GitVersion:"v1.27.3", GitCommit:"25b4e43193bcda6c7328a6d147b1fb73a33f1598", GitTreeState:"clean", BuildDate:"2023-06-14T09:52:26Z", GoVersion:"go1.20.5", Compiler:"gc", Platform:"linux/amd64"}
+
+# kubelet
+I0704 20:26:51.995307    2029 server.go:415] "Kubelet version" kubeletVersion="v1.27.3"
+
+# kubectl version --short
+Flag --short has been deprecated, and will be removed in the future. The --short output will become the default.
+Client Version: v1.27.3
+Kustomize Version: v5.0.1
+The connection to the server localhost:8080 was refused - did you specify the right host or port?
+```
+
+
+**Установка containerd**
+```bash
+wget https://github.com/containerd/containerd/releases/download/v1.7.0/containerd-1.7.0-linux-amd64.tar.gz
+tar xvf containerd-1.7.0-linux-amd64.tar.gz
+mv bin/* /usr/local/bin/
+```
+
+**Настройка containerd.service**
+```bash
+wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
+mkdir -p /usr/local/lib/systemd/system/
+mv containerd.service /usr/local/lib/systemd/system/containerd.service
+
+systemctl daemon-reload
+systemctl enable --now containerd
+```
+
+**Добавление конфигурационного файла** `/etc/containerd/config.toml`
+```bash
+mkdir -p /etc/containerd
+containerd config default > /etc/containerd/config.toml
+```
+
+В файле `/etc/containerd/config.toml` необходимо исправить параметр  `SystemdCgroup` на `"true"` и перезагрузить containerd.
+```bash
+...
+            SystemdCgroup = true
+...
+# service containerd restart
+```
+
+
+**Установка runc**
+```bash
+wget https://github.com/opencontainers/runc/releases/download/v1.1.7/runc.amd64
+install -m 755 runc.amd64 /usr/local/sbin/runc
+```
+
+Проверка корректности установки и версии runc
+```bash
+# runc -v
+runc version 1.1.7
+commit: v1.1.7-0-g860f061b
+spec: 1.0.2-dev
+go: go1.20.3
+libseccomp: 2.5.4
+```
+
+**Установка CNI plugins**
+```bash
+wget https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz
+mkdir -p /opt/cni/bin
+tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.3.0.tgz
+```
+
+**Настройка параметров** `/etc/sysctl.conf` **и автозагрузка модулей** `overlay`, `br_netfilter`.
+```bash
+# nano /etc/sysctl.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+
+modprobe br_netfilter overlay
+sysctl -p
+```
+
+```bash
+# nano /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+```
+
+#### Инициализация control plane
