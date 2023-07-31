@@ -442,7 +442,7 @@ csi-node-driver-2kpcv                      2/2     Running   0             2m22s
 csi-node-driver-n6bvq                      2/2     Running   2 (14s ago)   2m22s
 ```
 
-Установка calicoctl
+Установка `calicoctl`
 ```bash
 curl -L https://github.com/projectcalico/calico/releases/latest/download/calicoctl-linux-amd64 -o calicoctl
 chmod +x ./calicoctl
@@ -454,4 +454,203 @@ mv calicoctl /usr/local/bin/
 # calicoctl get ippool -o wide
 NAME                  CIDR            NAT    IPIPMODE   VXLANMODE     DISABLED   DISABLEBGPEXPORT   SELECTOR
 default-ipv4-ippool   10.200.0.0/16   true   Never      CrossSubnet   false      false              all()
+```
+
+#### Присоединение Worker nodes к кластеру
+
+```bash
+kubeadm join 10.120.0.94:6443 --token nbqhxd.rfplipgk4fjz6xki \
+        --discovery-token-ca-cert-hash sha256:d48b757aaa9cfdcad1059b6e304ed0feeb7e553e71181bbd6ed6372a4b9eb996
+```
+
+
+Результат выполнения команды:
+```bash
+[preflight] Running pre-flight checks
+[preflight] Reading configuration from the cluster...
+[preflight] FYI: You can look at this config file with 'kubectl -n kube-system get cm kubeadm-config -o yaml'
+[kubelet-start] Writing kubelet configuration to file "/var/lib/kubelet/config.yaml"
+[kubelet-start] Writing kubelet environment file with flags to file "/var/lib/kubelet/kubeadm-flags.env"
+[kubelet-start] Starting the kubelet
+[kubelet-start] Waiting for the kubelet to perform the TLS Bootstrap...
+
+This node has joined the cluster:
+* Certificate signing request was sent to apiserver and a response was received.
+* The Kubelet was informed of the new secure connection details.
+
+Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
+```
+
+Проверка статуса присоединенной Node:
+```bash
+# kubectl get nodes
+NAME     STATUS   ROLES           AGE     VERSION
+master   Ready    control-plane   14m     v1.27.3
+node1    Ready    <none>          2m19s   v1.27.3
+```
+
+Проверка статуса подов в неймспейсе kube-system после присоединения к кластеру двух нод:
+```bash
+# kubectl get pods -n kube-system -o wide
+
+NAME                                            READY   STATUS    RESTARTS       AGE    IP               NODE                    NOMINATED NODE   READINESS GATES
+coredns-5d78c9869d-2knrr                        1/1     Running   1 (91m ago)    144m   10.200.204.197   int-kubernetes-master   <none>           <none>
+coredns-5d78c9869d-l7jrs                        1/1     Running   10 (96m ago)   144m   10.200.67.101    int-node-1              <none>           <none>
+etcd-int-kubernetes-master                      1/1     Running   6 (91m ago)    144m   10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-apiserver-int-kubernetes-master            1/1     Running   6 (91m ago)    145m   10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-controller-manager-int-kubernetes-master   1/1     Running   8 (91m ago)    144m   10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-proxy-5hxf2                                1/1     Running   7 (91m ago)    144m   10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-proxy-fzknk                                1/1     Running   10 (91m ago)   134m   10.120.0.95      int-node-1              <none>           <none>
+kube-proxy-r2p8k                                1/1     Running   1 (91m ago)    95m    10.120.0.96      int-node-2              <none>           <none>
+kube-scheduler-int-kubernetes-master            1/1     Running   7 (91m ago)    144m   10.120.0.94      int-kubernetes-master   <none>           <none>
+```
+
+
+#### Итоговая проверка состояния кластера
+
+```bash
+# kubectl get nodes -o wide
+NAME                    STATUS   ROLES           AGE     VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+int-kubernetes-master   Ready    control-plane   55m     v1.27.3   10.120.0.94   <none>        Ubuntu 22.04.2 LTS   5.15.0-76-generic   containerd://1.7.0
+int-node-1              Ready    <none>          44m     v1.27.3   10.120.0.95   <none>        Ubuntu 22.04.2 LTS   5.15.0-76-generic   containerd://1.7.0
+int-node-2              Ready    <none>          5m17s   v1.27.3   10.120.0.96   <none>        Ubuntu 22.04.2 LTS   5.15.0-76-generic   containerd://1.7.0
+```
+
+```bash
+# kubectl get pods -o wide -A
+NAMESPACE          NAME                                            READY   STATUS    RESTARTS         AGE     IP               NODE                    NOMINATED NODE   READINESS GATES
+calico-apiserver   calico-apiserver-6dd8b6c769-pmrhr               1/1     Running   1 (74s ago)      35m     10.200.204.196   int-kubernetes-master   <none>           <none>
+calico-apiserver   calico-apiserver-6dd8b6c769-w4879               1/1     Running   10 (3m51s ago)   35m     10.200.67.99     int-node-1              <none>           <none>
+calico-system      calico-kube-controllers-594d4558bf-9lxpv        1/1     Running   4 (77s ago)      36m     10.200.67.100    int-node-1              <none>           <none>
+calico-system      calico-node-6zqfw                               1/1     Running   8 (3m ago)       36m     10.120.0.95      int-node-1              <none>           <none>
+calico-system      calico-node-9lwl6                               1/1     Running   1 (74s ago)      36m     10.120.0.94      int-kubernetes-master   <none>           <none>
+calico-system      calico-node-wplbg                               1/1     Running   1 (67s ago)      4m34s   10.120.0.96      int-node-2              <none>           <none>
+calico-system      calico-typha-594587b645-6l6mf                   1/1     Running   2 (29s ago)      4m30s   10.120.0.96      int-node-2              <none>           <none>
+calico-system      calico-typha-594587b645-n2mmc                   1/1     Running   10 (26s ago)     36m     10.120.0.95      int-node-1              <none>           <none>
+calico-system      csi-node-driver-2kpcv                           2/2     Running   2 (74s ago)      36m     10.200.204.198   int-kubernetes-master   <none>           <none>
+calico-system      csi-node-driver-h6z6h                           2/2     Running   2 (67s ago)      4m34s   10.200.16.66     int-node-2              <none>           <none>
+calico-system      csi-node-driver-n6bvq                           2/2     Running   16 (77s ago)     36m     10.200.67.102    int-node-1              <none>           <none>
+kube-system        coredns-5d78c9869d-2knrr                        1/1     Running   1 (74s ago)      54m     10.200.204.197   int-kubernetes-master   <none>           <none>
+kube-system        coredns-5d78c9869d-l7jrs                        1/1     Running   10 (5m55s ago)   54m     10.200.67.101    int-node-1              <none>           <none>
+kube-system        etcd-int-kubernetes-master                      1/1     Running   6 (74s ago)      53m     10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-system        kube-apiserver-int-kubernetes-master            1/1     Running   6 (74s ago)      54m     10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-system        kube-controller-manager-int-kubernetes-master   1/1     Running   8 (74s ago)      53m     10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-system        kube-proxy-5hxf2                                1/1     Running   7 (74s ago)      54m     10.120.0.94      int-kubernetes-master   <none>           <none>
+kube-system        kube-proxy-fzknk                                1/1     Running   10 (77s ago)     43m     10.120.0.95      int-node-1              <none>           <none>
+kube-system        kube-proxy-r2p8k                                1/1     Running   1 (67s ago)      4m34s   10.120.0.96      int-node-2              <none>           <none>
+kube-system        kube-scheduler-int-kubernetes-master            1/1     Running   7 (74s ago)      53m     10.120.0.94      int-kubernetes-master   <none>           <none>
+tigera-operator    tigera-operator-5f4668786-mv57z                 1/1     Running   10 (22s ago)     37m     10.120.0.95      int-node-1              <none>           <none>
+```
+
+Под calico-node-xxxx должен быть запущен на каждой ноде:
+```bash
+# kubectl get pods -n calico-system -o wide | grep calico-node
+calico-node-6zqfw                          1/1     Running   10 (8m50s ago)   24h   10.120.0.95      int-node-1              <none>           <none>
+calico-node-9lwl6                          1/1     Running   3 (9m14s ago)    24h   10.120.0.94      int-kubernetes-master   <none>           <none>
+calico-node-wplbg                          1/1     Running   8 (8m43s ago)    24h   10.120.0.96      int-node-2              <none>           <none>
+```
+
+```bash
+# Команду calicoctl node status нужно запустить на каждой ноде
+# calicoctl node status
+Calico process is running.
+
+IPv4 BGP status
++--------------+-------------------+-------+----------+-------------+
+| PEER ADDRESS |     PEER TYPE     | STATE |  SINCE   |    INFO     |
++--------------+-------------------+-------+----------+-------------+
+| 10.120.0.95  | node-to-node mesh | up    | 09:12:32 | Established |
+| 10.120.0.96  | node-to-node mesh | up    | 09:12:32 | Established |
++--------------+-------------------+-------+----------+-------------+
+
+IPv6 BGP status
+No IPv6 peers found.
+```
+
+```bash
+# kubectl get --raw='/readyz?verbose'
+[+]ping ok
+[+]log ok
+[+]etcd ok
+[+]etcd-readiness ok
+[+]informer-sync ok
+[+]poststarthook/start-kube-apiserver-admission-initializer ok
+[+]poststarthook/generic-apiserver-start-informers ok
+[+]poststarthook/priority-and-fairness-config-consumer ok
+[+]poststarthook/priority-and-fairness-filter ok
+[+]poststarthook/storage-object-count-tracker-hook ok
+[+]poststarthook/start-apiextensions-informers ok
+[+]poststarthook/start-apiextensions-controllers ok
+[+]poststarthook/crd-informer-synced ok
+[+]poststarthook/start-system-namespaces-controller ok
+[+]poststarthook/bootstrap-controller ok
+[+]poststarthook/rbac/bootstrap-roles ok
+[+]poststarthook/scheduling/bootstrap-system-priority-classes ok
+[+]poststarthook/priority-and-fairness-config-producer ok
+[+]poststarthook/start-cluster-authentication-info-controller ok
+[+]poststarthook/start-kube-apiserver-identity-lease-controller ok
+[+]poststarthook/start-deprecated-kube-apiserver-identity-lease-garbage-collector ok
+[+]poststarthook/start-kube-apiserver-identity-lease-garbage-collector ok
+[+]poststarthook/start-legacy-token-tracking-controller ok
+[+]poststarthook/aggregator-reload-proxy-client-cert ok
+[+]poststarthook/start-kube-aggregator-informers ok
+[+]poststarthook/apiservice-registration-controller ok
+[+]poststarthook/apiservice-status-available-controller ok
+[+]poststarthook/kube-apiserver-autoregistration ok
+[+]autoregister-completion ok
+[+]poststarthook/apiservice-openapi-controller ok
+[+]poststarthook/apiservice-openapiv3-controller ok
+[+]poststarthook/apiservice-discovery-controller ok
+[+]shutdown ok
+readyz check passed
+```
+
+```bash
+# curl -k https://localhost:6443/livez?verbose
+
+[+]ping ok
+[+]log ok
+[+]etcd ok
+[+]poststarthook/start-kube-apiserver-admission-initializer ok
+[+]poststarthook/generic-apiserver-start-informers ok
+[+]poststarthook/priority-and-fairness-config-consumer ok
+[+]poststarthook/priority-and-fairness-filter ok
+[+]poststarthook/storage-object-count-tracker-hook ok
+[+]poststarthook/start-apiextensions-informers ok
+[+]poststarthook/start-apiextensions-controllers ok
+[+]poststarthook/crd-informer-synced ok
+[+]poststarthook/start-system-namespaces-controller ok
+[+]poststarthook/bootstrap-controller ok
+[+]poststarthook/rbac/bootstrap-roles ok
+[+]poststarthook/scheduling/bootstrap-system-priority-classes ok
+[+]poststarthook/priority-and-fairness-config-producer ok
+[+]poststarthook/start-cluster-authentication-info-controller ok
+[+]poststarthook/start-kube-apiserver-identity-lease-controller ok
+[+]poststarthook/start-deprecated-kube-apiserver-identity-lease-garbage-collector ok
+[+]poststarthook/start-kube-apiserver-identity-lease-garbage-collector ok
+[+]poststarthook/start-legacy-token-tracking-controller ok
+[+]poststarthook/aggregator-reload-proxy-client-cert ok
+[+]poststarthook/start-kube-aggregator-informers ok
+[+]poststarthook/apiservice-registration-controller ok
+[+]poststarthook/apiservice-status-available-controller ok
+[+]poststarthook/kube-apiserver-autoregistration ok
+[+]autoregister-completion ok
+[+]poststarthook/apiservice-openapi-controller ok
+[+]poststarthook/apiservice-openapiv3-controller ok
+[+]poststarthook/apiservice-discovery-controller ok
+livez check passed
+```
+
+
+```bash
+# kubectl get componentstatuses
+Warning: v1 ComponentStatus is deprecated in v1.19+
+NAME                 STATUS    MESSAGE                         ERROR
+scheduler            Healthy   ok
+controller-manager   Healthy   ok
+etcd-0               Healthy   {"health":"true","reason":""}
+```
+
+```bash
+# kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp
 ```
