@@ -399,7 +399,7 @@ kubeadm join 10.120.0.94:6443 --token nbqhxd.rfplipgk4fjz6xki \
 ```
 
 
-От имени обычного пользователя выполнить:
+Копирование конфигурационного файла для доступа к кластеру в домашнюю директорию пользователя:
 ```bash
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -408,4 +408,50 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 export KUBECONFIG=$HOME/.kube/config
 ```
 
+#### Установка Calico
 
+Установка происходит в соответствии с официальной [документацией](https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises).
+
+```bash
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/tigera-operator.yaml
+
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml -O
+
+# ВАЖНО! Файл custom-resources.yaml необходимо отредактировать, по умолчанию в нем используется сеть 192.168.0.0/16, в нашем случае нужно установить 10.200.0.0/16
+kubectl create -f custom-resources.yaml
+```
+
+
+После установки Calico статус Nodes сменился на Ready:
+```bash
+# kubectl get nodes
+NAME                    STATUS   ROLES           AGE     VERSION
+int-kubernetes-master   Ready    control-plane   19m     v1.27.3
+int-node-1              Ready    <none>          7m22s   v1.27.3
+```
+
+Проверка статуса подов Calico:
+```bash
+# kubectl get pods -n calico-system
+NAME                                       READY   STATUS    RESTARTS      AGE
+calico-kube-controllers-594d4558bf-9lxpv   1/1     Running   0             2m22s
+calico-node-6zqfw                          1/1     Running   2 (91s ago)   2m22s
+calico-node-9lwl6                          1/1     Running   0             2m22s
+calico-typha-594587b645-n2mmc              1/1     Running   1 (52s ago)   2m22s
+csi-node-driver-2kpcv                      2/2     Running   0             2m22s
+csi-node-driver-n6bvq                      2/2     Running   2 (14s ago)   2m22s
+```
+
+Установка calicoctl
+```bash
+curl -L https://github.com/projectcalico/calico/releases/latest/download/calicoctl-linux-amd64 -o calicoctl
+chmod +x ./calicoctl
+mv calicoctl /usr/local/bin/
+```
+
+Проверка выделенного пула адресов. Он должен соответствовать выделенному ранее пулу 10.200.0.0/16
+```bash
+# calicoctl get ippool -o wide
+NAME                  CIDR            NAT    IPIPMODE   VXLANMODE     DISABLED   DISABLEBGPEXPORT   SELECTOR
+default-ipv4-ippool   10.200.0.0/16   true   Never      CrossSubnet   false      false              all()
+```
