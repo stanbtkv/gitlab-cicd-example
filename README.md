@@ -246,7 +246,7 @@ YAML-файлы для установки всех сервисов с помо�
 
 **Отключение swap на всех ВМ**
 ```bash
-swapoff -a
+# swapoff -a
 
 # nano /etc/fstab
 # /swap.img      none    swap    sw      0       0
@@ -255,8 +255,8 @@ swapoff -a
 **Проверка [уникальности](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#verify-mac-address) MAC-адресов и параметра `product_uuid` на всех ВМ**
 
 ```bash
-ip link
-sudo cat /sys/class/dmi/id/product_uuid
+# ip link
+# sudo cat /sys/class/dmi/id/product_uuid
 ```
 
 **Установка ebtables и ethtool**
@@ -355,8 +355,8 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.ip_forward = 1
 
-modprobe br_netfilter overlay
-sysctl -p
+# modprobe br_netfilter overlay
+# sysctl -p
 ```
 
 ```bash
@@ -366,3 +366,46 @@ br_netfilter
 ```
 
 #### Инициализация control plane
+
+```bash
+# 10.120.0.94 - IP-адрес ВМ, на которой будет работать control plane
+# 10.200.0.0/16 - пул IP-адресов для запуска pod'ов, он должен отличаться от адресов, используемых в локальной сети.
+
+# kubeadm init --apiserver-advertise-address=10.120.0.94 --pod-network-cidr=10.200.0.0/16
+```
+
+Результат выполнения команды:
+```bash
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Alternatively, if you are the root user, you can run:
+
+  export KUBECONFIG=/etc/kubernetes/admin.conf
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 10.120.0.94:6443 --token nbqhxd.rfplipgk4fjz6xki \
+        --discovery-token-ca-cert-hash sha256:d48b757aaa9cfdcad1059b6e304ed0feeb7e553e71181bbd6ed6372a4b9eb996
+```
+
+
+От имени обычного пользователя выполнить:
+```bash
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+export KUBECONFIG=$HOME/.kube/config
+```
+
+
