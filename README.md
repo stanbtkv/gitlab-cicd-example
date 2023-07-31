@@ -184,7 +184,7 @@ sum(rate(http_request_duration_seconds_count{code!="200"}[10m]))
 ### Yandex.Cloud
 <a name="cloud_infrastructure"></a>
 
-#### Предварительная подготовка для работы с проектом
+#### Предварительная подготовка
 Перед началом работы необходимо установить:
  - [yc](https://cloud.yandex.ru/docs/cli/operations/install-cli)
  - [Terraform](https://cloud.yandex.ru/docs/tutorials/infrastructure-management/terraform-quickstart)
@@ -195,11 +195,11 @@ sum(rate(http_request_duration_seconds_count{code!="200"}[10m]))
 
 #### Установка кластера Managed Kubernetes в Yandex Cloud
 Кластер Managed Kubernetes настраивается с помощью Terraform.
-Состояние Terraform хранится в Yandex Object Storage, конфигурация описана в файле backend.conf.
-Перед установкой необходимо заполнить файлы **backend.conf** и **secret.auto.tfvars** собственными данными. Примеры заполнения файлов backend.conf и secret.auto.tfvars находятся в файлах **backend.conf.example** и **secret.auto.tfvars.example**.
+Состояние Terraform хранится в Yandex Object Storage, конфигурация описана в файле `backend.conf`.
+Перед установкой необходимо заполнить файлы `backend.conf` и `secret.auto.tfvars` собственными данными. Примеры заполнения файлов `backend.conf` и `secret.auto.tfvars` находятся в файлах `backend.conf.example` и `secret.auto.tfvars.example`.
 
 Порядок выполнения команд Terraform для инициализации кластера Managed Kubernetes:
-   ```
+   ```bash
     terraform init -backend-config=backend.conf
     terraform validate
     terraform plan
